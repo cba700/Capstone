@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>꿈꾸는 직업 이야기 - 메인</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap');
+
+        * {
+            font-family: 'Noto Sans KR', sans-serif;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            33% { transform: translateY(-15px) rotate(2deg); }
+            66% { transform: translateY(-8px) rotate(-2deg); }
+        }
+
+        @keyframes float-slow {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            50% { transform: translate(20px, -20px) rotate(5deg); }
+        }
+
+        @keyframes shimmer {
+            0% { background-position: -1000px 0; }
+            100% { background-position: 1000px 0; }
+        }
+
+        @keyframes blob {
+            0%, 100% { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
+            50% { border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%; }
+        }
+
+        .animate-float {
+            animation: float 6s ease-in-out infinite;
+        }
+
+        .animate-float-slow {
+            animation: float-slow 8s ease-in-out infinite;
+        }
+
+        .animate-blob {
+            animation: blob 7s ease-in-out infinite;
+        }
+
+        .shimmer {
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            background-size: 1000px 100%;
+            animation: shimmer 3s infinite;
+        }
+
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #4facfe 75%, #00f2fe 100%);
+            background-size: 400% 400%;
+            animation: gradient 15s ease infinite;
+        }
+
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .card-hover {
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .card-hover:hover {
+            transform: translateY(-12px) scale(1.02);
+            box-shadow: 0 30px 60px -12px rgba(50, 50, 93, 0.25), 0 18px 36px -18px rgba(0, 0, 0, 0.3);
+        }
+
+        #sideMenu {
+            transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+    </style>
+</head>
+<body class="gradient-bg min-h-screen overflow-x-hidden">
+
+<!-- Floating Background Shapes -->
+<div class="fixed inset-0 overflow-hidden pointer-events-none z-0">
+    <div class="absolute top-20 -left-20 w-72 h-72 bg-purple-400 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
+    <div class="absolute top-40 -right-20 w-72 h-72 bg-yellow-400 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob" style="animation-delay: 2s;"></div>
+    <div class="absolute -bottom-20 left-1/3 w-72 h-72 bg-pink-400 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob" style="animation-delay: 4s;"></div>
+    <div class="absolute top-1/2 right-1/4 w-96 h-96 bg-blue-400 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob" style="animation-delay: 6s;"></div>
+</div>
+
+<!-- Overlay -->
+<div id="menuOverlay" class="fixed inset-0 bg-black bg-opacity-0 pointer-events-none transition-all duration-300 z-40 backdrop-blur-0"></div>
+
+<!-- Side Menu -->
+<div id="sideMenu" class="fixed top-0 left-0 h-full w-80 glass shadow-2xl z-50 -translate-x-full">
+    <div class="p-8 h-full flex flex-col">
+        <div class="flex items-center justify-between mb-10">
+            <div class="flex items-center gap-4">
+                <div class="w-14 h-14 bg-gradient-to-br from-purple-500 via-pink-500 to-orange-500 rounded-3xl flex items-center justify-center shadow-lg transform rotate-6">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h2 class="text-2xl font-black text-gray-800">메뉴</h2>
+                    <p class="text-xs text-gray-500">Menu</p>
+                </div>
+            </div>
+            <button onclick="closeMenu()" class="p-2 hover:bg-gray-100 rounded-2xl transition-all">
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+
+        <nav class="flex-1 space-y-3">
+            <a href="#" class="flex items-center gap-4 px-5 py-4 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg transform hover:scale-105 transition-all">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline>
+                </svg>
+                <span class="font-bold text-lg">홈</span>
+            </a>
+            <a href="#" class="flex items-center gap-4 px-5 py-4 rounded-2xl hover:bg-purple-50 text-gray-700 hover:text-purple-600 transition-all transform hover:translate-x-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                </svg>
+                <span class="font-bold">내 이야기책</span>
+            </a>
+            <a href="#" class="flex items-center gap-4 px-5 py-4 rounded-2xl hover:bg-purple-50 text-gray-700 hover:text-purple-600 transition-all transform hover:translate-x-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line>
+                </svg>
+                <span class="font-bold">직업 탐색</span>
+            </a>
+            <a href="#" class="flex items-center gap-4 px-5 py-4 rounded-2xl hover:bg-purple-50 text-gray-700 hover:text-purple-600 transition-all transform hover:translate-x-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle>
+                </svg>
+                <span class="font-bold">내 정보</span>
+            </a>
+            <a href="#" class="flex items-center gap-4 px-5 py-4 rounded-2xl hover:bg-purple-50 text-gray-700 hover:text-purple-600 transition-all transform hover:translate-x-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"></circle><path d="M12 1v6m0 6v6"></path><path d="m4.93 4.93 4.24 4.24m5.66 5.66 4.24 4.24"></path><path d="m19.07 4.93-4.24 4.24m-5.66 5.66-4.24 4.24"></path>
+                </svg>
+                <span class="font-bold">설정</span>
+            </a>
+        </nav>
+
+        <div class="border-t pt-6 mt-6">
+            <a href="#" class="flex items-center gap-4 px-5 py-4 rounded-2xl hover:bg-red-50 text-gray-700 hover:text-red-500 transition-all">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+                <span class="font-bold">로그아웃</span>
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Main Content -->
+<div class="min-h-screen flex flex-col relative z-10">
+    <!-- Header -->
+    <header class="p-6">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <button onclick="openMenu()" class="p-4 glass rounded-3xl shadow-xl hover:shadow-2xl transform hover:scale-110 transition-all">
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="url(#gradient1)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <defs>
+                        <linearGradient id="gradient1" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+                        </linearGradient>
+                    </defs>
+                    <line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line>
+                </svg>
+            </button>
+
+            <div class="flex items-center gap-4">
+                <div class="hidden sm:block text-right">
+                    <p class="font-black text-white text-lg">반가워요!</p>
+                    <p class="text-white text-sm opacity-90">오늘도 꿈을 향해 🚀</p>
+                </div>
+                <div class="w-14 h-14 bg-gradient-to-br from-yellow-400 via-pink-400 to-purple-500 rounded-full flex items-center justify-center text-white font-black text-xl shadow-2xl cursor-pointer hover:scale-110 transition-transform border-4 border-white">
+                    아
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Section -->
+    <main class="flex-1 flex items-center justify-center px-4 sm:px-6 pb-12">
+        <div class="max-w-7xl w-full">
+            <!-- Welcome Section -->
+            <div class="text-center mb-12">
+                <div class="inline-block mb-6 animate-float">
+                    <div class="w-32 h-32 bg-gradient-to-br from-yellow-400 via-pink-500 to-purple-600 rounded-full flex items-center justify-center shadow-2xl relative">
+                        <div class="absolute inset-0 bg-white rounded-full animate-ping opacity-20"></div>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+                        </svg>
+                    </div>
+                </div>
+                <h1 class="text-5xl sm:text-7xl font-black text-white mb-4 drop-shadow-lg">
+                    어떤 꿈을 꾸고 있니? ✨
+                </h1>
+                <p class="text-xl sm:text-2xl text-white font-bold opacity-95">
+                    오늘은 어떤 멋진 직업 이야기를 만들어볼까요?
+                </p>
+            </div>
+
+            <!-- Action Cards -->
+            <div class="grid md:grid-cols-2 gap-8 mb-12">
+                <!-- Create New Story Card -->
+                <div class="glass rounded-[3rem] shadow-2xl p-10 card-hover cursor-pointer overflow-hidden relative group">
+                    <div class="absolute inset-0 bg-gradient-to-br from-blue-500 to-purple-600 opacity-0 group-hover:opacity-10 transition-opacity"></div>
+                    <div class="relative z-10">
+                        <div class="flex justify-between items-start mb-6">
+                            <div class="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-3xl flex items-center justify-center shadow-xl animate-float-slow">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
+                                </svg>
+                            </div>
+                            <div class="px-4 py-2 bg-blue-100 text-blue-600 rounded-full text-sm font-black">NEW</div>
+                        </div>
+                        <h2 class="text-4xl font-black text-gray-800 mb-4">새로운 이야기 만들기</h2>
+                        <p class="text-gray-600 text-lg mb-6 font-medium">
+                            궁금한 직업을 선택하고<br/>
+                            나만의 특별한 이야기를 만들어봐요! 🎨
+                        </p>
+                        <div class="flex flex-wrap gap-2 mb-4">
+                            <span class="px-5 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-full text-sm font-bold shadow-md">🩺 의사</span>
+                            <span class="px-5 py-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-full text-sm font-bold shadow-md">🚀 우주비행사</span>
+                            <span class="px-5 py-2 bg-gradient-to-r from-pink-500 to-pink-600 text-white rounded-full text-sm font-bold shadow-md">👨‍🍳 요리사</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- View My Books Card -->
+                <div class="glass rounded-[3rem] shadow-2xl p-10 card-hover cursor-pointer overflow-hidden relative group">
+                    <div class="absolute inset-0 bg-gradient-to-br from-pink-500 to-orange-500 opacity-0 group-hover:opacity-10 transition-opacity"></div>
+                    <div class="relative z-10">
+                        <div class="flex justify-between items-start mb-6">
+                            <div class="w-20 h-20 bg-gradient-to-br from-pink-500 to-orange-500 rounded-3xl flex items-center justify-center shadow-xl animate-float-slow" style="animation-delay: 1s;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                                </svg>
+                            </div>
+                            <div class="px-4 py-2 bg-pink-100 text-pink-600 rounded-full text-sm font-black">📚</div>
+                        </div>
+                        <h2 class="text-4xl font-black text-gray-800 mb-4">내 이야기책 보기</h2>
+                        <p class="text-gray-600 text-lg mb-6 font-medium">
+                            지금까지 만든 멋진 이야기들을<br/>
+                            다시 읽어볼까요? 📖
+                        </p>
+                        <div class="bg-gradient-to-r from-pink-100 to-orange-100 rounded-3xl px-8 py-6 inline-block shadow-lg">
+                            <p class="text-4xl font-black bg-gradient-to-r from-pink-600 to-orange-600 bg-clip-text text-transparent">
+                                3<span class="text-2xl font-bold text-gray-600">권의 책</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="text-center pb-8 text-white font-bold opacity-90">
+        <p>© 2025 꿈꾸는 직업 이야기. All rights reserved.</p>
+    </footer>
+</div>
+
+<script>
+    function openMenu() {
+        const menu = document.getElementById('sideMenu');
+        const overlay = document.getElementById('menuOverlay');
+        menu.style.transform = 'translateX(0)';
+        overlay.classList.remove('bg-opacity-0', 'pointer-events-none');
+        overlay.classList.add('bg-opacity-50', 'pointer-events-auto');
+        overlay.style.backdropFilter = 'blur(8px)';
+    }
+
+    function closeMenu() {
+        const menu = document.getElementById('sideMenu');
+        const overlay = document.getElementById('menuOverlay');
+        menu.style.transform = 'translateX(-100%)';
+        overlay.classList.remove('bg-opacity-50', 'pointer-events-auto');
+        overlay.classList.add('bg-opacity-0', 'pointer-events-none');
+        overlay.style.backdropFilter = 'blur(0)';
+    }
+
+    document.getElementById('menuOverlay').addEventListener('click', closeMenu);
+</script>
+
+</body>
+</html>
