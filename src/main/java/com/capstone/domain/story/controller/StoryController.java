@@ -1,5 +1,6 @@
 package com.capstone.domain.story.controller;
 
+import com.capstone.domain.story.dto.EndingResponseDto;
 import com.capstone.domain.story.dto.StoryPageResponseDto;
 import com.capstone.domain.story.entity.Story;
 import com.capstone.domain.story.service.StoryService;
@@ -28,6 +29,23 @@ public class StoryController {
         return "story-play";
     }
 
-    // TODO: API 명세에 따라 choice, complete 등 메소드 구현 예정
+    @PostMapping("/{storyId}/choice")
+    public String makeChoice(@PathVariable Long storyId, @RequestParam Long choiceId) {
+        int nextStep = storyService.makeChoice(storyId, choiceId);
+        return "redirect:/story/" + storyId + "/page/" + nextStep;
+    }
+
+    @PostMapping("/{storyId}/complete")
+    public String completeStory(@PathVariable Long storyId, @RequestParam Long choiceId) {
+        storyService.completeStory(storyId, choiceId);
+        return "redirect:/story/" + storyId + "/ending";
+    }
+
+    @GetMapping("/{storyId}/ending")
+    public String showEnding(@PathVariable Long storyId, Model model) {
+        EndingResponseDto endingDto = storyService.getEnding(storyId);
+        model.addAttribute("ending", endingDto);
+        return "story-ending"; // story-ending.html 뷰 반환
+    }
 
 }
