@@ -20,9 +20,13 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+            .csrf(csrf -> csrf
+                .ignoringRequestMatchers("/api/**") // '/api/'로 시작하는 모든 경로는 CSRF 보호 예외
+            )
             .authorizeHttpRequests(authorizeRequests ->
                 authorizeRequests
-                    .requestMatchers("/login", "/register", "/css/**", "/js/**", "/images/**").permitAll()
+                    .requestMatchers("/login", "/register", "/css/**", "/js/**", "/images/**", "/api/gemini/**").permitAll()
+                    .requestMatchers("/api/sessions/**", "/api/themes/**", "/api/storybooks/**").authenticated()
                     .requestMatchers("/main").authenticated()
                     .anyRequest().permitAll()
             )

@@ -1,10 +1,20 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <title>스토리북 보기</title>
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-
+<body class="bg-gradient-to-br from-purple-100 via-pink-50 to-blue-100 min-h-screen">
+<div class="max-w-4xl mx-auto py-10 px-4">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-800" th:text="${book.title}">스토리북</h1>
+            <p class="text-gray-600" th:text="${book.summary}">즐거운 이야기를 불러오는 중...</p>
+        </div>
+        <a href="/bookshelf" class="text-purple-600 font-semibold hover:text-purple-800">목록으로</a>
+    </div>
+    <div class="bg-white rounded-3xl shadow-2xl p-6 prose max-w-none" th:utext="${book.contentHtml}"></div>
+</div>
 </body>
 </html>

@@ -1,10 +1,29 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <title>내 이야기 보관함</title>
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-
+<body class="bg-gradient-to-br from-purple-100 via-pink-50 to-blue-100 min-h-screen">
+<div class="max-w-6xl mx-auto py-10 px-4">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-800">내 이야기 보관함</h1>
+            <p class="text-gray-600">완성된 스토리북을 다시 읽어보아요.</p>
+        </div>
+        <a href="/main" class="text-purple-600 font-semibold hover:text-purple-800">메인으로</a>
+    </div>
+    <div id="bookshelfGrid" class="grid md:grid-cols-2 gap-6">
+        <div th:if="${#lists.isEmpty(books)}" class="text-gray-500">아직 저장한 스토리가 없어요. 새로운 모험을 시작해보세요!</div>
+        <div th:each="book : ${books}" class="bg-white rounded-3xl shadow-xl p-6 flex flex-col gap-3">
+            <div class="text-sm font-semibold text-purple-500" th:text="${'세션 #' + book.session.id}">세션</div>
+            <div class="text-xl font-bold text-gray-800" th:text="${book.title}">제목</div>
+            <p class="text-gray-600 line-clamp-3" th:text="${book.summary}">요약</p>
+            <a th:href="@{'/story/view'(bookId=${book.id})}"
+               class="mt-auto bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl px-4 py-2 font-semibold text-center">자세히 보기</a>
+        </div>
+    </div>
+</div>
 </body>
 </html>
