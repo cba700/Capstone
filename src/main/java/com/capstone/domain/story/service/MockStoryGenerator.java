@@ -26,4 +26,9 @@ public class MockStoryGenerator implements StoryGenerator {
     public String generateEnding(List<StorySelectLog> history) {
         return "{\"narration\": \"모든 모험이 끝났습니다. 당신의 성향에 맞는 직업은 다음과 같습니다.\", \"recommendedJobs\": [\"소방관\", \"디자이너\", \"요리사\"]}";
     }
+
+    @Override
+    public String generateJobStoryFirstPage(com.capstone.domain.job.entity.Job job) {
+        return "{\"narration\": \"이제부터 당신은 멋진 '" + job.getName() + "'입니다. 첫 번째 미션이 주어졌습니다.\", \"choices\": [ {\"text\": \"미션을 수락한다\"} ]}";
+    }
 }

@@ -48,4 +48,10 @@ public class StoryController {
         return "story-ending"; // story-ending.html 뷰 반환
     }
 
+    @PostMapping("/{storyId}/job-select")
+    public String selectJob(@PathVariable Long storyId, @RequestParam Long recommendationId) {
+        Story newStory = storyService.startJobStory(recommendationId);
+        // 2부 스토리의 진행 페이지(job-play.html)로 리다이렉트
+        return "redirect:/story/" + newStory.getId() + "/job";
+    }
 }

@@ -3,6 +3,8 @@ package com.capstone.domain.story.service;
 import com.capstone.domain.child.entity.Child;
 import com.capstone.domain.child.repository.ChildRepository;
 import com.capstone.domain.job.dto.JobRecommendationDto;
+import com.capstone.domain.job.entity.Job;
+import com.capstone.domain.job.entity.JobRecommendation;
 import com.capstone.domain.job.repository.JobRecommendationRepository;
 import com.capstone.domain.job.service.JobRecommendationService;
 import com.capstone.domain.story.dto.EndingResponseDto;
@@ -194,5 +196,52 @@ public class StoryService {
                 .narration(narration)
                 .recommendations(recommendations)
                 .build();
+    }
+
+    public Story startJobStory(Long recommendationId) {
+        // 1. 사용자가 선택한 직업 추천 정보를 가져옴
+        JobRecommendation recommendation = jobRecommendationRepository.findById(recommendationId)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid recommendation Id:" + recommendationId));
+        recommendation.select(); // 선택됨 상태로 변경
+
+        Story previousStory = recommendation.getStory();
+        Child child = previousStory.getChild();
+        Job selectedJob = recommendation.getJob();
+
+        // 2. 2부 스토리 새로 생성
+        Story jobStory = Story.builder()
+                .child(child)
+                .theme(previousStory.getTheme()) // 1부와 동일한 테마 유지 또는 변경 가능
+                .status(StoryStatus.JOB_STARTED)
+                .currentStep(1)
+                .selectedJob(selectedJob)
+                .build();
+        storyRepository.save(jobStory);
+
+        // 3. AI를 통해 2부 스토리의 첫 페이지 생성
+        String generatedJson = storyGenerator.generateJobStoryFirstPage(selectedJob);
+        JSONObject pageJson = new JSONObject(generatedJson);
+
+        // 4. 첫 페이지 및 선택지 저장
+        StoryPage firstPage = StoryPage.builder()
+                .story(jobStory)
+                .step(1)
+                .narration(pageJson.getString("narration"))
+                .hasChoice(true)
+                .build();
+        storyPageRepository.save(firstPage);
+
+        JSONArray choicesJson = pageJson.getJSONArray("choices");
+        for (int i = 0; i < choicesJson.length(); i++) {
+            JSONObject choiceJson = choicesJson.getJSONObject(i);
+            StoryChoice choice = StoryChoice.builder()
+                    .page(firstPage)
+                    .choiceKey(StoryChoice.ChoiceKey.values()[i])
+                    .label(choiceJson.getString("text"))
+                    .build();
+            storyChoiceRepository.save(choice);
+        }
+
+        return jobStory;
     }
 }

@@ -37,4 +37,8 @@ public class JobRecommendation {
 
 	@Column(nullable = false)
 	private Boolean selected; // 아이가 실제로 선택한 경우 true
+
+	public void select() {
+		this.selected = true;
+	}
 }

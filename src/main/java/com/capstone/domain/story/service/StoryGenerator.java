@@ -1,5 +1,6 @@
 package com.capstone.domain.story.service;
 
+import com.capstone.domain.job.entity.Job;
 import com.capstone.domain.story.entity.StorySelectLog;
 import com.capstone.domain.theme.entity.Theme;
 
@@ -15,4 +16,7 @@ public interface StoryGenerator {
 
     // 1부 스토리의 결말 및 직업 추천 생성
     String generateEnding(List<StorySelectLog> history);
+
+    // 2부 스토리(직업 체험)의 첫 페이지 생성
+    String generateJobStoryFirstPage(Job job);
 }
