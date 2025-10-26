@@ -37,11 +37,9 @@ public class StoryService {
     private final StorySelectLogRepository storySelectLogRepository;
     private final ThemeRepository themeRepository;
     private final ChildRepository childRepository;
-    private final JobRecommendationRepository jobRecommendationRepository; // 추가
+    private final JobRecommendationRepository jobRecommendationRepository;
     private final StoryGenerator storyGenerator;
-    private final JobRecommendationService jobRecommendationService; // 추가
-
-    // ... createStory, getPage, makeChoice 메소드 ...
+    private final JobRecommendationService jobRecommendationService;
 
     public Story createStory(Long childId, Long themeId) {
         Child child = childRepository.findById(childId)
@@ -66,6 +64,7 @@ public class StoryService {
         StoryPage firstPage = StoryPage.builder()
                 .story(savedStory)
                 .step(1)
+                .pageType(PageType.START) // 페이지 타입 설정
                 .narration(pageJson.getString("narration"))
                 .hasChoice(true) // 첫 페이지는 항상 선택지가 있다고 가정
                 .build();

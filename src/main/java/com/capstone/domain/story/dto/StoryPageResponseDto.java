@@ -9,6 +9,7 @@ import java.util.List;
 public record StoryPageResponseDto(
         Long storyId,
         Integer step,
+        String themeName, // 테마 이름 필드 추가
         String narration,
         List<ChoiceResponseDto> choices
 ) {
@@ -16,6 +17,7 @@ public record StoryPageResponseDto(
         return StoryPageResponseDto.builder()
                 .storyId(page.getStory().getId())
                 .step(page.getStep())
+                .themeName(page.getStory().getTheme().getName())
                 .narration(page.getNarration())
                 .choices(choices)
                 .build();
