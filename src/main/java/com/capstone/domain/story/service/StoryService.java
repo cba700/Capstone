@@ -244,4 +244,57 @@ public class StoryService {
 
         return jobStory;
     }
+
+    @Transactional(readOnly = true)
+    public Story getStory(Long storyId) {
+        return storyRepository.findById(storyId)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid story Id:" + storyId));
+    }
+
+    public int makeJobChoice(Long storyId, Long choiceId) {
+        Story story = storyRepository.findById(storyId)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid story Id:" + storyId));
+        StoryChoice choice = storyChoiceRepository.findById(choiceId)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid choice Id:" + choiceId));
+
+        // 1. 선택 로그 기록
+        StorySelectLog log = StorySelectLog.builder()
+                .story(story)
+                .page(choice.getPage())
+                .choice(choice)
+                .step(story.getCurrentStep())
+                .build();
+        storySelectLogRepository.save(log);
+
+        // 2. 스토리 현재 단계 업데이트
+        story.advanceStep();
+        storyRepository.save(story);
+
+        // 3. AI를 통해 다음 페이지 생성
+        List<StorySelectLog> history = storySelectLogRepository.findByStoryOrderByStepAsc(story);
+        String generatedJson = storyGenerator.generateJobStoryNextPage(history);
+        JSONObject pageJson = new JSONObject(generatedJson);
+
+        // 4. 다음 페이지 및 선택지 저장
+        StoryPage nextPage = StoryPage.builder()
+                .story(story)
+                .step(story.getCurrentStep())
+                .narration(pageJson.getString("narration"))
+                .hasChoice(true)
+                .build();
+        storyPageRepository.save(nextPage);
+
+        JSONArray choicesJson = pageJson.getJSONArray("choices");
+        for (int i = 0; i < choicesJson.length(); i++) {
+            JSONObject choiceJson = choicesJson.getJSONObject(i);
+            StoryChoice nextChoice = StoryChoice.builder()
+                    .page(nextPage)
+                    .choiceKey(StoryChoice.ChoiceKey.values()[i])
+                    .label(choiceJson.getString("text"))
+                    .build();
+            storyChoiceRepository.save(nextChoice);
+        }
+
+        return story.getCurrentStep();
+    }
 }

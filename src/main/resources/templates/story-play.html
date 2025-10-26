@@ -5,240 +5,40 @@
     <title>이야기 진행하기</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="min-h-screen bg-gradient-to-br from-purple-100 via-pink-50 to-blue-100">
-<div class="max-w-5xl mx-auto py-10 px-4"
-     th:data-session-id="${sessionInfo.sessionId()}">
-    <div class="flex items-center justify-between mb-6">
-        <div>
-            <h1 class="text-3xl font-bold text-gray-800" th:text="${themeTitle}">나만의 AI 스토리북</h1>
-            <p class="text-gray-600">선택에 따라 모험이 달라져요!</p>
-        </div>
-        <a href="/bookshelf" class="text-purple-600 font-semibold hover:text-purple-800">내 이야기 보관함</a>
+<body class="min-h-screen bg-gradient-to-br from-purple-100 via-pink-50 to-blue-100 flex items-center justify-center p-4">
+
+<div class="w-full max-w-2xl">
+    <div class="text-center mb-6">
+        <h1 class="text-4xl font-black text-gray-800 mb-2" th:text="${page.story.theme.name}">테마 이름</h1>
+        <p class="text-gray-600">선택에 따라 모험이 달라져요!</p>
     </div>
 
-    <div class="bg-white rounded-3xl shadow-2xl p-6 mb-6">
-        <div class="flex items-center justify-between mb-4">
-            <span id="sessionStatus" class="text-sm font-semibold text-purple-500 uppercase"
-                  th:text="${'상태 · ' + sessionInfo.status()}">세션 상태</span>
-            <span id="branchCounter" class="text-sm text-gray-500"
-                  th:text="${'분기 ' + sessionInfo.branchCount() + ' / 3 · 체험 ' + sessionInfo.careerBranchCount() + ' / 2'}"></span>
+    <div class="bg-white rounded-3xl shadow-2xl p-8">
+        <!-- Narration -->
+        <div class="bg-purple-50 rounded-2xl p-6 mb-6">
+            <p class="text-gray-800 text-lg leading-relaxed whitespace-pre-line" th:text="${page.narration}">나레이션이 여기에 표시됩니다.</p>
         </div>
-        <div class="bg-purple-50 rounded-2xl p-6 mb-4">
-            <p id="sceneText" class="text-gray-800 text-lg leading-relaxed whitespace-pre-line"
-               th:text="${latestScene != null ? latestScene.content : '장면을 불러오는 중...'}">장면을 불러오는 중...</p>
-        </div>
-        <div id="hintBox" class="text-sm text-gray-600 italic"></div>
-    </div>
 
-    <div id="choicesWrapper" class="grid gap-4 md:grid-cols-3 mb-8"
-         th:data-latest-scene-json="${latestSceneMetadata}">
-        <p th:if="${latestScene == null}" class="text-gray-500">AI가 처음 장면을 준비하는 중이에요.</p>
-        <div th:if="${latestScene != null}" class="hidden"></div>
-    </div>
-
-    <div id="recommendationWrapper" th:data-career-json="${#lists.isEmpty(recommendations) ? '' : #strings.listJoin(recommendations, '||')}"
-         th:classappend="${#lists.isEmpty(recommendations) ? ' hidden' : ''}"
-         class="bg-white rounded-3xl shadow-xl p-6 mb-8">
-        <h2 class="text-xl font-bold text-gray-800 mb-4">추천 직업</h2>
-        <div id="recommendationList" class="grid md:grid-cols-3 gap-4">
-            <button th:each="career : ${recommendations}"
-                    th:text="${career}"
-                    th:data-career-name="${career}"
-                    class="bg-gradient-to-br from-purple-100 to-pink-100 rounded-2xl p-4 text-left hover:from-purple-200 hover:to-pink-200 transition">
-                직업 이름
-            </button>
+        <!-- Choices -->
+        <div class="grid md:grid-cols-2 gap-4">
+            <div th:each="choice : ${page.choices}">
+                <form th:action="@{/story/{storyId}/choice(storyId=${page.storyId})}" method="post">
+                    <input type="hidden" name="choiceId" th:value="${choice.choiceId}"/>
+                    <button type="submit" class="w-full h-full text-left p-6 bg-white border-2 border-gray-200 rounded-2xl hover:border-purple-500 hover:bg-purple-50 transition-all duration-300 transform hover:scale-105">
+                        <p class="font-semibold text-gray-800" th:text="${choice.text}">선택지 텍스트</p>
+                    </button>
+                </form>
+            </div>
+            <div th:if="${#lists.isEmpty(page.choices)}" class="col-span-full text-center text-gray-500 py-4">
+                <p>이야기의 다음 페이지를 생성 중입니다...</p>
+            </div>
         </div>
     </div>
 
-    <div class="bg-white rounded-3xl shadow-xl p-6">
-        <div class="flex items-center justify-between mb-4">
-            <h2 class="text-xl font-bold text-gray-800">나의 성향 태그</h2>
-            <button id="refreshTraits" class="text-sm text-purple-600 font-semibold">새로고침</button>
-        </div>
-        <div id="traitList" class="flex flex-wrap gap-3">
-            <span th:each="entry : ${traitScores.entrySet()}"
-                  th:text="${entry.key + ' ' + entry.value}"
-                  class="px-3 py-1 rounded-full bg-purple-50 text-purple-600 text-sm font-semibold">태그</span>
-            <span th:if="${traitScores.isEmpty()}" class="text-gray-500 text-sm">아직 태그가 없어요.</span>
-        </div>
+    <div class="text-center mt-6">
+        <a href="/main" class="text-sm text-gray-600 hover:text-gray-800">메인으로 돌아가기</a>
     </div>
 </div>
 
-<script>
-const root = document.querySelector('[data-session-id]');
-const sessionId = Number(root.getAttribute('data-session-id'));
-const sceneTextEl = document.getElementById('sceneText');
-const sessionStatusEl = document.getElementById('sessionStatus');
-const branchCounterEl = document.getElementById('branchCounter');
-const hintBoxEl = document.getElementById('hintBox');
-const choicesWrapper = document.getElementById('choicesWrapper');
-const traitList = document.getElementById('traitList');
-const recommendationWrapper = document.getElementById('recommendationWrapper');
-const recommendationList = document.getElementById('recommendationList');
-
-let sessionState = null;
-let latestScene = null;
-
-function parseMetadata(metadataJson) {
-    if (!metadataJson) return {};
-    try {
-        return JSON.parse(metadataJson);
-    } catch {
-        return {};
-    }
-}
-
-function hydrateFromServer() {
-    const metadataJson = choicesWrapper.dataset.latestSceneJson;
-    if (metadataJson) {
-        const metadata = parseMetadata(metadataJson);
-        renderChoices(metadata.choices || []);
-        hintBoxEl.textContent = metadata.narratorHint || '';
-    }
-    const careersAttr = recommendationWrapper.dataset.careerJson;
-    if (careersAttr) {
-        const parsed = careersAttr.split('||').map(s => s.trim()).filter(Boolean);
-        renderRecommendations(parsed);
-    }
-}
-
-async function fetchJson(url, options) {
-    const res = await fetch(url, options);
-    if (!res.ok) {
-        throw new Error('요청 실패: ' + url);
-    }
-    return res.json();
-}
-
-function renderScene(scene) {
-    latestScene = scene;
-    sceneTextEl.textContent = scene.content;
-    const metadata = parseMetadata(scene.metadataJson);
-    hintBoxEl.textContent = metadata.narratorHint || '';
-    renderChoices(metadata.choices || []);
-}
-
-function renderChoices(choices) {
-    choicesWrapper.innerHTML = '';
-    if (!choices.length) {
-        choicesWrapper.innerHTML = '<p class="text-gray-500">AI가 다음 선택지를 준비 중이에요.</p>';
-        return;
-    }
-    choices.forEach(choice => {
-        const card = document.createElement('button');
-        card.className = 'bg-white rounded-2xl border-2 border-purple-100 hover:border-purple-400 transition p-4 text-left shadow-sm';
-        card.innerHTML = `
-            <div class="font-semibold text-gray-800 mb-2">${choice.text}</div>
-            <div class="flex flex-wrap gap-2">
-                ${(choice.tags || []).map(tag => `<span class="px-2 py-1 bg-purple-50 text-purple-600 rounded-full text-xs">#${tag}</span>`).join('')}
-            </div>
-        `;
-        card.addEventListener('click', () => submitChoice(choice));
-        choicesWrapper.appendChild(card);
-    });
-}
-
-function renderRecommendations(careers) {
-    if (!careers.length) {
-        recommendationWrapper.classList.add('hidden');
-        return;
-    }
-    recommendationWrapper.classList.remove('hidden');
-    recommendationList.innerHTML = '';
-    careers.forEach(career => {
-        const card = document.createElement('button');
-        card.dataset.careerName = career;
-        card.className = 'bg-gradient-to-br from-purple-100 to-pink-100 rounded-2xl p-4 text-left hover:from-purple-200 hover:to-pink-200 transition';
-        card.innerHTML = `<div class="font-bold text-gray-800">${career}</div><p class="text-sm text-gray-600">직업 체험을 시작하려면 눌러보세요.</p>`;
-        card.addEventListener('click', () => selectCareer(career));
-        recommendationList.appendChild(card);
-    });
-}
-
-function renderTraits(traits) {
-    traitList.innerHTML = '';
-    const entries = Object.entries(traits);
-    if (!entries.length) {
-        traitList.innerHTML = '<span class="text-gray-500 text-sm">아직 태그가 없어요.</span>';
-        return;
-    }
-    entries.forEach(([tag, value]) => {
-        const pill = document.createElement('span');
-        pill.className = 'px-3 py-1 rounded-full bg-purple-50 text-purple-600 text-sm font-semibold';
-        pill.textContent = `${tag} ${value}`;
-        traitList.appendChild(pill);
-    });
-}
-
-async function loadSessionState() {
-    sessionState = await fetchJson(`/api/sessions/${sessionId}`);
-    sessionStatusEl.textContent = `현재 상태 · ${sessionState.status}`;
-    branchCounterEl.textContent = `분기 ${sessionState.branchCount} / 3 · 체험 ${sessionState.careerBranchCount} / 2`;
-}
-
-async function loadLatestScene() {
-    const scenes = await fetchJson(`/api/sessions/${sessionId}/scenes`);
-    if (scenes.length) {
-        renderScene(scenes[scenes.length - 1]);
-    }
-}
-
-async function loadTraits() {
-    const traits = await fetchJson(`/api/sessions/${sessionId}/traits`);
-    renderTraits(traits);
-}
-
-async function loadRecommendations() {
-    const data = await fetchJson(`/api/sessions/${sessionId}/recommendations`);
-    renderRecommendations(data.careers || []);
-}
-
-async function refreshAll() {
-    await loadSessionState();
-    await loadLatestScene();
-    await loadTraits();
-    await loadRecommendations();
-}
-
-async function submitChoice(choice) {
-    if (!latestScene) return;
-    const payload = {
-        sceneId: latestScene.sceneId,
-        choiceText: choice.text,
-        tags: choice.tags || []
-    };
-    const endpoint = sessionState && sessionState.status === 'CAREER_EXPERIENCE'
-        ? `/api/sessions/${sessionId}/career/branch`
-        : `/api/sessions/${sessionId}/branch`;
-    try {
-        await fetchJson(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        await refreshAll();
-    } catch (e) {
-        alert('선택 처리 중 문제가 발생했어요.');
-    }
-}
-
-async function selectCareer(career) {
-    try {
-        await fetchJson(`/api/sessions/${sessionId}/career/select`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ careerName: career })
-        });
-        await refreshAll();
-    } catch (e) {
-        alert('직업 체험을 시작할 수 없어요. 다시 시도해주세요.');
-    }
-}
-
-document.getElementById('refreshTraits').addEventListener('click', loadTraits);
-
-hydrateFromServer();
-refreshAll();
-</script>
 </body>
 </html>

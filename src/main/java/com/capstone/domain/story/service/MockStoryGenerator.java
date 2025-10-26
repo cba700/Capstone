@@ -31,4 +31,10 @@ public class MockStoryGenerator implements StoryGenerator {
     public String generateJobStoryFirstPage(com.capstone.domain.job.entity.Job job) {
         return "{\"narration\": \"이제부터 당신은 멋진 '" + job.getName() + "'입니다. 첫 번째 미션이 주어졌습니다.\", \"choices\": [ {\"text\": \"미션을 수락한다\"} ]}";
     }
+
+    @Override
+    public String generateJobStoryNextPage(List<StorySelectLog> history) {
+        int missionStep = history.size();
+        return "{\"narration\": \"" + missionStep + "번째 미션을 성공적으로 해결했습니다! 다음 미션에 도전하시겠습니까?\", \"choices\": [ {\"text\": \"도전한다!\"}, {\"text\": \"그만하고 쉰다.\"} ]}";
+    }
 }

@@ -6,8 +6,8 @@ server:
 spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    # !!! 아래 url, username, password를 실제 사용하시는 MySQL 정보로 수정해주세요 !!!
-    url: jdbc:mysql://localhost:3306/capstone?useSSL=false&serverTimezone=UTC&characterEncoding=UTF-8
+    # !!! url 수정됨 (allowPublicKeyRetrieval=true 추가) !!!
+    url: jdbc:mysql://localhost:3306/capstone?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
     username: root
     password: 1234
 
@@ -19,12 +19,6 @@ spring:
     properties:
       hibernate:
         format_sql: true # SQL을 보기 좋게 포맷팅
-
-  # Spring Session
-  session:
-    store-type: jdbc # 세션을 데이터베이스에 저장
-    jdbc:
-      initialize-schema: always # 애플리케이션 시작 시 세션 테이블 자동 생성
 
   # Thymeleaf
   thymeleaf:

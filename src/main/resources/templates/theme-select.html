@@ -4,6 +4,15 @@
     <meta charset="UTF-8">
     <title>테마 선택 - 꿈꾸는 직업 이야기</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .card-hover {
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .card-hover:hover {
+            transform: translateY(-12px) scale(1.02);
+            box-shadow: 0 30px 60px -12px rgba(50, 50, 93, 0.25), 0 18px 36px -18px rgba(0, 0, 0, 0.3);
+        }
+    </style>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-purple-100 via-pink-50 to-blue-100 py-8">
 <div class="max-w-6xl mx-auto px-4">
@@ -14,87 +23,36 @@
         </a>
         <div>
             <h1 class="text-3xl font-bold text-gray-800">새로운 이야기 준비하기</h1>
-            <p class="text-gray-600">계정에 등록된 아이가 바로 모험을 떠나요. 테마만 골라주세요!</p>
+            <p class="text-gray-600">모험을 떠날 아이를 확인하고, 마음에 드는 테마를 골라주세요!</p>
         </div>
     </div>
 
     <div>
-        <div class="flex items-center justify-between mb-4">
-            <h2 class="text-2xl font-bold text-gray-800">테마 고르기</h2>
-            <button id="refreshThemes" class="text-sm font-semibold text-purple-600 hover:text-purple-800">새로고침</button>
-        </div>
-        <div id="themeGrid" class="grid gap-6 md:grid-cols-3">
-            <div th:each="theme : ${themes}" class="bg-white rounded-3xl shadow-xl p-6 flex flex-col gap-3">
-                <div class="text-sm font-semibold text-purple-500 uppercase tracking-wide" th:text="${theme.code}">CODE</div>
-                <div class="text-xl font-bold text-gray-800" th:text="${theme.title}">테마 제목</div>
-                <p class="text-sm text-gray-600 h-20 overflow-hidden" th:text="${theme.description}">테마 설명</p>
-                <button class="mt-auto bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl px-4 py-2 font-semibold start-theme"
-                        th:attr="data-theme-id=${theme.id}">이야기 시작</button>
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">테마 고르기</h2>
+        <div id="themeGrid" class="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+
+            <!-- Thymeleaf each loop for themes -->
+            <div th:each="theme : ${themes}" class="bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl p-6 flex flex-col card-hover">
+                <form th:action="@{/story/create}" method="post" class="flex flex-col h-full">
+                    <!-- Hidden inputs for childId and themeId -->
+                    <input type="hidden" name="childId" th:value="${childId}" />
+                    <input type="hidden" name="themeId" th:value="${theme.id}" />
+
+                    <div class="flex-grow">
+                        <div class="text-sm font-bold text-purple-500 uppercase tracking-wider" th:text="${theme.name}">테마 이름</div>
+                        <p class="text-gray-600 text-sm mt-2 h-16" th:text="${theme.description}">테마 설명</p>
+                    </div>
+                    <button type="submit" class="mt-4 w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl px-4 py-3 font-semibold hover:shadow-lg transition-shadow">
+                        이 테마로 이야기 시작
+                    </button>
+                </form>
             </div>
-            <p th:if="${#lists.isEmpty(themes)}" class="text-gray-500">등록된 테마가 없습니다.</p>
+
+            <div th:if="${#lists.isEmpty(themes)}" class="col-span-full text-center text-gray-500 py-10">
+                <p>현재 선택할 수 있는 테마가 없습니다.</p>
+            </div>
         </div>
     </div>
 </div>
-
-<script>
-const themeGrid = document.getElementById('themeGrid');
-const refreshButton = document.getElementById('refreshThemes');
-
-async function fetchJson(url, options) {
-    const res = await fetch(url, options);
-    if (!res.ok) {
-        throw new Error('요청이 실패했어요.');
-    }
-    return res.json();
-}
-
-function renderThemes(themes) {
-    if (!themes.length) {
-        themeGrid.innerHTML = '<p class="text-gray-500">등록된 테마가 없습니다.</p>';
-        return;
-    }
-    themeGrid.innerHTML = '';
-    themes.forEach(theme => {
-        const card = document.createElement('div');
-        card.className = 'bg-white rounded-3xl shadow-xl p-6 flex flex-col gap-3 hover:-translate-y-1 transition-transform cursor-pointer';
-        card.innerHTML = `
-            <div class="text-sm font-semibold text-purple-500 uppercase tracking-wide">${theme.code}</div>
-            <div class="text-xl font-bold text-gray-800">${theme.title}</div>
-            <p class="text-sm text-gray-600 h-20 overflow-hidden">${theme.description ?? ''}</p>
-            <button class="mt-auto bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl px-4 py-2 font-semibold">이야기 시작</button>
-        `;
-        card.querySelector('button').addEventListener('click', () => startSession(theme.id));
-        themeGrid.appendChild(card);
-    });
-}
-
-async function loadThemes() {
-    const themes = await fetchJson('/api/themes');
-    renderThemes(themes);
-}
-
-async function startSession(themeId) {
-    try {
-        const response = await fetchJson('/api/sessions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ themeId })
-        });
-        window.location.href = `/story/play?sessionId=${response.session.sessionId}`;
-    } catch (e) {
-        alert('세션을 시작할 수 없어요. 잠시 뒤 다시 시도해주세요.');
-    }
-}
-
-refreshButton.addEventListener('click', loadThemes);
-
-document.querySelectorAll('.start-theme').forEach(btn => {
-    btn.addEventListener('click', () => startSession(Number(btn.dataset.themeId)));
-});
-
-if (!document.querySelector('.start-theme')) {
-    loadThemes();
-}
-</script>
 </body>
 </html>

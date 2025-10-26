@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>첫 번째 모험의 끝</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-purple-100 via-pink-50 to-blue-100 flex items-center justify-center p-4">
+
+<div class="w-full max-w-2xl bg-white rounded-3xl shadow-2xl p-8 text-center">
+    <div class="mb-6">
+        <h1 class="text-4xl font-black text-gray-800 mb-2">그리고...</h1>
+        <p class="text-gray-600 whitespace-pre-line" th:text="${ending.narration}">결말 나레이션이 여기에 표시됩니다.</p>
+    </div>
+
+    <div class="bg-gray-50 rounded-2xl p-6">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">새로운 세계로의 초대</h2>
+        <p class="text-gray-600 mb-6">이번 모험을 통해 발견한 너의 성향에 어울리는 세계들이야. 어디로 가볼까?</p>
+        <div class="grid md:grid-cols-3 gap-4">
+            <div th:each="rec : ${ending.recommendations}">
+                <form th:action="@{/story/{storyId}/job-select(storyId=${storyId})}" method="post">
+                    <input type="hidden" name="recommendationId" th:value="${rec.recommendationId}"/>
+                    <button type="submit" class="w-full h-full text-left p-4 bg-gradient-to-br from-purple-100 to-pink-100 rounded-2xl hover:shadow-lg hover:-translate-y-1 transition-transform">
+                        <p class="font-bold text-lg text-purple-800" th:text="${rec.themeWorld}">용기의 나라</p>
+                        <p class="text-sm text-gray-700" th:text="${'(' + rec.jobName + ')'}">(소방관)</p>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

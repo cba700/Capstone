@@ -19,4 +19,7 @@ public interface StoryGenerator {
 
     // 2부 스토리(직업 체험)의 첫 페이지 생성
     String generateJobStoryFirstPage(Job job);
+
+    // 2부 스토리의 다음 페이지 생성
+    String generateJobStoryNextPage(List<StorySelectLog> history);
 }
