@@ -19,7 +19,7 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable) // 개발 단계에서는 비활성화
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/css/**", "/js/**", "/images/**",
-                    "/register", "/login", "/main").permitAll()
+                    "/register", "/login").permitAll()
                 .anyRequest().authenticated()
             )
             .formLogin(form -> form

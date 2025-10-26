@@ -22,4 +22,9 @@ spring:
 
   # Thymeleaf
   thymeleaf:
-    cache: false # 개발 중에는 타임리프 캐시를 비활성화하여 변경사항 즉시 반영
+    cache: false # 개발 중에는 타임리프 캐시를 비활성화하여 변경사항 즉spring:
+
+  session:
+    store-type: jdbc
+    jdbc:
+      initialize-schema: always # <--- 'if-not-exists' 였다면 'always'로 변경시 반영

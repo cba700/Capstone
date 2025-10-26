@@ -5,6 +5,7 @@ import com.capstone.domain.child.service.ChildService;
 import com.capstone.domain.user.dto.UserRegisterRequestDto;
 import com.capstone.domain.user.entity.User;
 import com.capstone.domain.user.service.UserService;
+import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
@@ -22,7 +23,7 @@ import java.util.List;
 public class UserController {
 
     private final UserService userService;
-    private final ChildService childService; // 추가
+    private final ChildService childService;
 
     @GetMapping("/register")
     public String registerPage() {
@@ -41,9 +42,20 @@ public class UserController {
     }
 
     @GetMapping("/main")
-    public String mainPage(@AuthenticationPrincipal User user, Model model) {
+    public String mainPage(@AuthenticationPrincipal User user, Model model, HttpSession session) {
+        // 모든 아이 목록 추가 (기존 로직)
         List<Child> children = childService.findMyChildren(user);
         model.addAttribute("children", children);
+
+        // 세션에서 선택된 아이 정보 조회 및 모델에 추가
+        Long selectedChildId = (Long) session.getAttribute("selectedChildId");
+        if (selectedChildId != null) {
+            childService.findChildById(selectedChildId).ifPresent(selectedChild ->
+                model.addAttribute("selectedChild", selectedChild)
+            );
+        }
+
         return "main";
     }
 }
+

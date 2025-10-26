@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -30,6 +31,11 @@ public class ChildService {
     @Transactional(readOnly = true)
     public List<Child> findMyChildren(User user) {
         return childRepository.findByUser(user);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<Child> findChildById(Long id) {
+        return childRepository.findById(id);
     }
 
     public void deleteChild(Long id) {

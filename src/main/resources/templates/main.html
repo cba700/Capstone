@@ -208,55 +208,67 @@
 
             <!-- Action Cards -->
             <div class="grid md:grid-cols-2 gap-8 mb-12">
-                <!-- Create New Story Card -->
-                <div class="glass rounded-[3rem] shadow-2xl p-10 card-hover cursor-pointer overflow-hidden relative group">
-                    <div class="absolute inset-0 bg-gradient-to-br from-blue-500 to-purple-600 opacity-0 group-hover:opacity-10 transition-opacity"></div>
-                    <div class="relative z-10">
-                        <div class="flex justify-between items-start mb-6">
-                            <div class="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-3xl flex items-center justify-center shadow-xl animate-float-slow">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
-                                </svg>
+
+                <!-- Create New Story Card (Conditional) -->
+                <div th:if="${selectedChild != null}">
+                    <a th:href="@{/story/new(childId=${selectedChild.id})}" class="block glass rounded-[3rem] shadow-2xl p-10 card-hover cursor-pointer overflow-hidden relative group h-full">
+                        <div class="absolute inset-0 bg-gradient-to-br from-blue-500 to-purple-600 opacity-0 group-hover:opacity-10 transition-opacity"></div>
+                        <div class="relative z-10">
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-3xl flex items-center justify-center shadow-xl animate-float-slow">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
+                                </div>
+                                <div class="px-4 py-2 bg-blue-100 text-blue-600 rounded-full text-sm font-black">START</div>
                             </div>
-                            <div class="px-4 py-2 bg-blue-100 text-blue-600 rounded-full text-sm font-black">NEW</div>
+                            <h2 class="text-4xl font-black text-gray-800 mb-4" th:text="|${selectedChild.name}의 이야기 만들기|"></h2>
+                            <p class="text-gray-600 text-lg mb-6 font-medium">
+                                선택된 아이와 함께<br/>
+                                새로운 직업 이야기를 시작해봐요! 🚀
+                            </p>
                         </div>
-                        <h2 class="text-4xl font-black text-gray-800 mb-4">새로운 이야기 만들기</h2>
-                        <p class="text-gray-600 text-lg mb-6 font-medium">
-                            궁금한 직업을 선택하고<br/>
-                            나만의 특별한 이야기를 만들어봐요! 🎨
-                        </p>
-                        <div class="flex flex-wrap gap-2 mb-4">
-                            <span class="px-5 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-full text-sm font-bold shadow-md">🩺 의사</span>
-                            <span class="px-5 py-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-full text-sm font-bold shadow-md">🚀 우주비행사</span>
-                            <span class="px-5 py-2 bg-gradient-to-r from-pink-500 to-pink-600 text-white rounded-full text-sm font-bold shadow-md">👨‍🍳 요리사</span>
+                    </a>
+                </div>
+
+                <div th:if="${selectedChild == null}">
+                    <a href="/children" class="block glass rounded-[3rem] shadow-2xl p-10 card-hover cursor-pointer overflow-hidden relative group h-full">
+                        <div class="absolute inset-0 bg-gradient-to-br from-gray-500 to-gray-600 opacity-0 group-hover:opacity-10 transition-opacity"></div>
+                        <div class="relative z-10">
+                            <div class="flex justify-between items-start mb-6">
+                                <div class="w-20 h-20 bg-gradient-to-br from-gray-500 to-gray-600 rounded-3xl flex items-center justify-center shadow-xl animate-float-slow">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                                </div>
+                            </div>
+                            <h2 class="text-4xl font-black text-gray-800 mb-4">아이를 선택해주세요</h2>
+                            <p class="text-gray-600 text-lg mb-6 font-medium">
+                                누구의 이야기를 만들까요?<br/>
+                                먼저 아이를 선택해야 이야기가 시작돼요.
+                            </p>
                         </div>
-                    </div>
+                    </a>
                 </div>
 
                 <!-- View My Books Card -->
-                <div class="glass rounded-[3rem] shadow-2xl p-10 card-hover cursor-pointer overflow-hidden relative group">
+                <a href="/children" class="block glass rounded-[3rem] shadow-2xl p-10 card-hover cursor-pointer overflow-hidden relative group h-full">
                     <div class="absolute inset-0 bg-gradient-to-br from-pink-500 to-orange-500 opacity-0 group-hover:opacity-10 transition-opacity"></div>
                     <div class="relative z-10">
                         <div class="flex justify-between items-start mb-6">
                             <div class="w-20 h-20 bg-gradient-to-br from-pink-500 to-orange-500 rounded-3xl flex items-center justify-center shadow-xl animate-float-slow" style="animation-delay: 1s;">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-                                </svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
                             </div>
                             <div class="px-4 py-2 bg-pink-100 text-pink-600 rounded-full text-sm font-black">📚</div>
                         </div>
-                        <h2 class="text-4xl font-black text-gray-800 mb-4">내 이야기책 보기</h2>
+                        <h2 class="text-4xl font-black text-gray-800 mb-4">아이 관리</h2>
                         <p class="text-gray-600 text-lg mb-6 font-medium">
-                            지금까지 만든 멋진 이야기들을<br/>
-                            다시 읽어볼까요? 📖
+                            등록된 아이들을 확인하고<br/>
+                            이야기를 만들 아이를 선택하세요! 📖
                         </p>
                         <div class="bg-gradient-to-r from-pink-100 to-orange-100 rounded-3xl px-8 py-6 inline-block shadow-lg">
                             <p class="text-4xl font-black bg-gradient-to-r from-pink-600 to-orange-600 bg-clip-text text-transparent">
-                                3<span class="text-2xl font-bold text-gray-600">권의 책</span>
+                                <span th:text="${#lists.size(children)}">0</span><span class="text-2xl font-bold text-gray-600"> 명의 아이</span>
                             </p>
                         </div>
                     </div>
-                </div>
+                </a>
             </div>
         </div>
     </main>
