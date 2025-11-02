@@ -11,6 +11,7 @@ public record StoryPageResponseDto(
         Integer step,
         String themeName, // 테마 이름 필드 추가
         String narration,
+        boolean hasChoice, // 선택지 유무 필드 추가
         List<ChoiceResponseDto> choices
 ) {
     public static StoryPageResponseDto from(StoryPage page, List<ChoiceResponseDto> choices) {
@@ -19,6 +20,7 @@ public record StoryPageResponseDto(
                 .step(page.getStep())
                 .themeName(page.getStory().getTheme().getName())
                 .narration(page.getNarration())
+                .hasChoice(page.getHasChoice())
                 .choices(choices)
                 .build();
     }

@@ -28,3 +28,9 @@ spring:
     store-type: jdbc
     jdbc:
       initialize-schema: always # <--- 'if-not-exists' 였다면 'always'로 변경시 반영
+
+# Gemini API Configuration
+gemini:
+  api-key: "AIzaSyBWz-lBKXqfrgmMkUnpXTWefelCYrsTh_I"
+  # The v1beta endpoint requires the fully qualified, versioned model slug.
+  model-name: "gemini-2.5-flash"

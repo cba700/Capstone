@@ -38,6 +38,9 @@ dependencies {
 	runtimeOnly 'com.mysql:mysql-connector-j'
 	implementation 'org.json:json:20231013'
 
+	// Google AI (for Gemini API)
+	implementation 'com.google.genai:google-genai:1.0.0'
+
 	// Lombok (Optional, for reducing boilerplate code)
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'

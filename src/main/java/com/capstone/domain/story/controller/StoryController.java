@@ -9,6 +9,8 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
+import com.capstone.domain.story.dto.response.TitleResponseDto;
+
 @Controller
 @RequiredArgsConstructor
 @RequestMapping("/story")
@@ -35,39 +37,15 @@ public class StoryController {
         return "redirect:/story/" + storyId + "/page/" + nextStep;
     }
 
-    @PostMapping("/{storyId}/complete")
-    public String completeStory(@PathVariable Long storyId, @RequestParam Long choiceId) {
-        storyService.completeStory(storyId, choiceId);
-        return "redirect:/story/" + storyId + "/ending";
+    @PostMapping("/start-job")
+    public String startJobStory(@RequestParam Long previousStoryId, @RequestParam String jobName) {
+        Story newStory = storyService.startJobStory(previousStoryId, jobName);
+        return "redirect:/story/" + newStory.getId() + "/page/1";
     }
 
-    @GetMapping("/{storyId}/ending")
-    public String showEnding(@PathVariable Long storyId, Model model) {
-        EndingResponseDto endingDto = storyService.getEnding(storyId);
-        model.addAttribute("ending", endingDto);
-        return "story-ending"; // story-ending.html 뷰 반환
-    }
-
-    @PostMapping("/{storyId}/job-select")
-    public String selectJob(@PathVariable Long storyId, @RequestParam Long recommendationId) {
-        Story newStory = storyService.startJobStory(recommendationId);
-        // 2부 스토리의 진행 페이지(job-play.html)로 리다이렉트
-        return "redirect:/story/" + newStory.getId() + "/job";
-    }
-
-    @GetMapping("/{storyId}/job")
-    public String showJobPage(@PathVariable Long storyId, Model model) {
-        // 2부 스토리는 step이 URL에 없고, 항상 현재 step을 찾아서 보여줌
-        Story story = storyService.getStory(storyId); // StoryService에 getStory 메소드 추가 필요
-        StoryPageResponseDto pageDto = storyService.getPage(storyId, story.getCurrentStep());
-        model.addAttribute("page", pageDto);
-        return "job-play";
-    }
-
-    @PostMapping("/{storyId}/job/choice")
-    public String makeJobChoice(@PathVariable Long storyId, @RequestParam Long choiceId) {
-        storyService.makeJobChoice(storyId, choiceId);
-        // 선택 후에는 같은 job 페이지로 리다이렉트하여 다음 내용을 표시
-        return "redirect:/story/" + storyId + "/job";
-    }
+   /* @GetMapping("/{storyId}/title")
+    @ResponseBody
+    public TitleResponseDto createTitle(@PathVariable Long storyId) {
+        return storyService.createTitle(storyId);
+    }*/
 }

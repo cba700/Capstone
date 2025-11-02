@@ -2,11 +2,13 @@ package com.capstone.domain.trait.entity;
 
 import com.capstone.domain.job.entity.Job;
 import jakarta.persistence.*;
+import lombok.Getter;
 
 @Entity
 @Table(uniqueConstraints = {
     @UniqueConstraint(columnNames = {"trait_id", "job_id"})
 })
+@Getter
 public class TraitJob {
 
 	@Id

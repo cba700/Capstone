@@ -2,14 +2,17 @@ package com.capstone.domain.story.service;
 
 import com.capstone.domain.child.entity.Child;
 import com.capstone.domain.child.repository.ChildRepository;
-import com.capstone.domain.job.dto.JobRecommendationDto;
 import com.capstone.domain.job.entity.Job;
-import com.capstone.domain.job.entity.JobRecommendation;
-import com.capstone.domain.job.repository.JobRecommendationRepository;
-import com.capstone.domain.job.service.JobRecommendationService;
-import com.capstone.domain.story.dto.EndingResponseDto;
+import com.capstone.domain.job.repository.JobRepository;
 import com.capstone.domain.story.dto.ChoiceResponseDto;
 import com.capstone.domain.story.dto.StoryPageResponseDto;
+import com.capstone.domain.story.dto.request.JobExperienceStartRequestDto;
+import com.capstone.domain.story.dto.request.StoryCompletionRequestDto;
+import com.capstone.domain.story.dto.request.StoryNextStepRequestDto;
+import com.capstone.domain.story.dto.request.StoryStartRequestDto;
+import com.capstone.domain.story.dto.request.TitleGenerationRequestDto;
+import com.capstone.domain.story.dto.response.AiResponseDto;
+import com.capstone.domain.story.dto.response.TitleResponseDto;
 import com.capstone.domain.story.entity.*;
 import com.capstone.domain.story.repository.StoryChoiceRepository;
 import com.capstone.domain.story.repository.StoryPageRepository;
@@ -17,13 +20,22 @@ import com.capstone.domain.story.repository.StoryRepository;
 import com.capstone.domain.story.repository.StorySelectLogRepository;
 import com.capstone.domain.theme.entity.Theme;
 import com.capstone.domain.theme.repository.ThemeRepository;
+import com.capstone.domain.trait.entity.Trait;
+import com.capstone.domain.trait.entity.TraitJob;
+import com.capstone.domain.trait.repository.TraitJobRepository;
+import com.capstone.domain.trait.repository.TraitRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import lombok.RequiredArgsConstructor;
-import org.json.JSONArray;
-import org.json.JSONObject;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
-import java.util.List;
+import java.io.IOException;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -31,269 +43,230 @@ import java.util.stream.Collectors;
 @Transactional
 public class StoryService {
 
-    private final StoryRepository storyRepository;
-    private final StoryPageRepository storyPageRepository;
-    private final StoryChoiceRepository storyChoiceRepository;
-    private final StorySelectLogRepository storySelectLogRepository;
-    private final ThemeRepository themeRepository;
-    private final ChildRepository childRepository;
-    private final JobRecommendationRepository jobRecommendationRepository;
-    private final StoryGenerator storyGenerator;
-    private final JobRecommendationService jobRecommendationService;
+	private static final int STORY_CHOICE_LIMIT = 3;
+	private static final List<String> JOB_FALLBACKS = List.of("상상력 탐험가", "친절한 도우미", "용감한 탐험가");
 
-    public Story createStory(Long childId, Long themeId) {
-        Child child = childRepository.findById(childId)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid child Id:" + childId));
-        Theme theme = themeRepository.findById(themeId)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid theme Id:" + themeId));
+	private final StoryRepository storyRepository;
+	private final StoryPageRepository storyPageRepository;
+	private final StoryChoiceRepository storyChoiceRepository;
+	private final StorySelectLogRepository storySelectLogRepository;
+	private final ThemeRepository themeRepository;
+	private final ChildRepository childRepository;
+	private final TraitRepository traitRepository;
+	private final TraitJobRepository traitJobRepository;
+	private final JobRepository jobRepository;
+	private final StoryGenerator storyGenerator;
 
-        // 1. 스토리 생성
-        Story story = Story.builder()
-                .child(child)
-                .theme(theme)
-                .status(StoryStatus.IN_PROGRESS)
-                .currentStep(1)
-                .build();
-        Story savedStory = storyRepository.save(story);
+	private final ObjectMapper objectMapper = new ObjectMapper();
 
-        // 2. AI를 통해 첫 페이지 생성 (현재는 Mock 사용)
-        String generatedJson = storyGenerator.generateFirstPage(theme);
-        JSONObject pageJson = new JSONObject(generatedJson);
+	public Story createStory(Long childId, Long themeId) {
+		Child child = childRepository.findById(childId)
+			.orElseThrow(() -> new IllegalArgumentException("Invalid child Id:" + childId));
+		Theme theme = themeRepository.findById(themeId)
+			.orElseThrow(() -> new IllegalArgumentException("Invalid theme Id:" + themeId));
 
-        // 3. 첫 페이지 정보 저장
-        StoryPage firstPage = StoryPage.builder()
-                .story(savedStory)
-                .step(1)
-                .pageType(PageType.START) // 페이지 타입 설정
-                .narration(pageJson.getString("narration"))
-                .hasChoice(true) // 첫 페이지는 항상 선택지가 있다고 가정
-                .build();
-        storyPageRepository.save(firstPage);
+		StoryStartRequestDto requestDto = StoryStartRequestDto.builder()
+			.childName(child.getName())
+			.childAge(child.getAge())
+			.childGender(child.getGender().toString())
+			.interests(Collections.singletonList(theme.getName()))
+			.build();
 
-        // 4. 선택지 정보 저장
-        JSONArray choicesJson = pageJson.getJSONArray("choices");
-        for (int i = 0; i < choicesJson.length(); i++) {
-            JSONObject choiceJson = choicesJson.getJSONObject(i);
-            StoryChoice choice = StoryChoice.builder()
-                    .page(firstPage)
-                    .choiceKey(StoryChoice.ChoiceKey.values()[i]) // A, B, C 순서대로 할당
-                    .label(choiceJson.getString("text"))
-                    .build();
-            storyChoiceRepository.save(choice);
-        }
+		AiResponseDto aiResponse = storyGenerator.generateStoryStart(requestDto);
 
-        return savedStory;
-    }
+		Story story = Story.builder().
+			child(child).
+			theme(theme).
+			status(StoryStatus.IN_PROGRESS).
+			currentStep(0).
+			build();
 
-    @Transactional(readOnly = true)
-    public StoryPageResponseDto getPage(Long storyId, Integer step) {
-        Story story = storyRepository.findById(storyId)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid story Id:" + storyId));
-        StoryPage page = storyPageRepository.findByStoryAndStep(story, step)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid step:" + step));
+		Story savedStory = storyRepository.save(story);
 
-        // 해당 페이지의 선택지들을 조회
-        List<ChoiceResponseDto> choices = storyChoiceRepository.findByPage(page).stream()
-                .map(choice -> ChoiceResponseDto.builder()
-                        .choiceId(choice.getId())
-                        .text(choice.getLabel())
-                        .build())
-                .collect(Collectors.toList());
+		saveSceneFromAiResponse(savedStory, aiResponse);
+		return savedStory;
+	}
 
-        return StoryPageResponseDto.from(page, choices);
-    }
+	public int makeChoice(Long storyId, Long choiceId) {
+		Story story = storyRepository.findById(storyId)
+			.orElseThrow(() -> new IllegalArgumentException("Invalid story Id:" + storyId));
+		StoryChoice choice = storyChoiceRepository.findById(choiceId)
+			.orElseThrow(() -> new IllegalArgumentException("Invalid choice Id:" + choiceId));
 
-    public int makeChoice(Long storyId, Long choiceId) {
-        Story story = storyRepository.findById(storyId)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid story Id:" + storyId));
-        StoryChoice choice = storyChoiceRepository.findById(choiceId)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid choice Id:" + choiceId));
+		storySelectLogRepository.save(StorySelectLog.builder()
+			.story(story)
+			.page(choice.getPage())
+			.choice(choice)
+			.step(story.getCurrentStep())
+			.build());
 
-        // 1. 선택 로그 기록
-        StorySelectLog log = StorySelectLog.builder()
-                .story(story)
-                .page(choice.getPage())
-                .choice(choice)
-                .step(story.getCurrentStep())
-                .build();
-        storySelectLogRepository.save(log);
+		long choiceCount = storySelectLogRepository.countByStory(story);
 
-        // 2. 스토리 현재 단계 업데이트
-        story.advanceStep();
-        storyRepository.save(story);
+		if (choiceCount < STORY_CHOICE_LIMIT) {
+			StoryNextStepRequestDto requestDto = StoryNextStepRequestDto.builder()
+				.childName(story.getChild().getName()).childGender(story.getChild().getGender().toString())
+				.previousChoice(choice.getLabel()).currentStep(Math.min((int)choiceCount + 1, STORY_CHOICE_LIMIT)).build();
+			AiResponseDto aiResponse = storyGenerator.generateNextStep(requestDto);
+			return saveSceneFromAiResponse(story, aiResponse);
+		} else {
+			List<String> recommendedJobs = recommendJobsBasedOnTraits(story);
+			for (int i = recommendedJobs.size(); i < 3; i++) {
+				recommendedJobs.add(JOB_FALLBACKS.get(i % JOB_FALLBACKS.size()));
+			}
+			StoryCompletionRequestDto requestDto = StoryCompletionRequestDto.builder()
+				.childName(story.getChild().getName()).childGender(story.getChild().getGender().toString())
+				.lastChoice(choice.getLabel()).recommendedJobs(recommendedJobs).build();
+			AiResponseDto aiResponse = storyGenerator.generateStoryCompletion(requestDto);
+			story.updateStatus(StoryStatus.RECOMMENDED);
+			return saveSceneFromAiResponse(story, aiResponse);
+		}
+	}
 
-        // 3. AI를 통해 다음 페이지 생성 (현재는 Mock 사용)
-        // List<StorySelectLog> history = storySelectLogRepository.findByStoryOrderByStepAsc(story);
-        // String generatedJson = storyGenerator.generateNextPage(history);
-        String generatedJson = storyGenerator.generateNextPage(null); // Mock이므로 임시로 null 전달
-        JSONObject pageJson = new JSONObject(generatedJson);
+	public Story startJobStory(Long previousStoryId, String jobName) {
+		Story previousStory = storyRepository.findById(previousStoryId)
+			.orElseThrow(() -> new IllegalArgumentException("Invalid story Id:" + previousStoryId));
+		Child child = previousStory.getChild();
+		Job job = jobRepository.findByName(jobName)
+			.orElseThrow(() -> new IllegalArgumentException("Invalid job name: " + jobName));
 
-        // 4. 다음 페이지 정보 저장
-        StoryPage nextPage = StoryPage.builder()
-                .story(story)
-                .step(story.getCurrentStep())
-                .narration(pageJson.getString("narration"))
-                .hasChoice(true)
-                .build();
-        storyPageRepository.save(nextPage);
+		String coreTrait = findCoreTrait(previousStory);
 
-        // 5. 다음 페이지의 선택지 정보 저장
-        JSONArray choicesJson = pageJson.getJSONArray("choices");
-        for (int i = 0; i < choicesJson.length(); i++) {
-            JSONObject choiceJson = choicesJson.getJSONObject(i);
-            StoryChoice nextChoice = StoryChoice.builder()
-                    .page(nextPage)
-                    .choiceKey(StoryChoice.ChoiceKey.values()[i])
-                    .label(choiceJson.getString("text"))
-                    .build();
-            storyChoiceRepository.save(nextChoice);
-        }
+		JobExperienceStartRequestDto requestDto = JobExperienceStartRequestDto.builder()
+			.childName(child.getName()).childGender(child.getGender().toString())
+			.selectedJob(job.getName()).themeWorld(job.getName() + " 나라") // 테마월드 임시 생성
+			.coreTrait(coreTrait).build();
 
-        return story.getCurrentStep();
-    }
+		AiResponseDto aiResponse = storyGenerator.generateJobExperienceStart(requestDto);
 
-    public void completeStory(Long storyId, Long choiceId) {
-        Story story = storyRepository.findById(storyId)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid story Id:" + storyId));
-        StoryChoice choice = storyChoiceRepository.findById(choiceId)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid choice Id:" + choiceId));
+		Story jobStory = Story.builder().child(child).theme(previousStory.getTheme()).status(StoryStatus.JOB_STARTED)
+			.currentStep(0).selectedJob(job).build();
+		Story savedJobStory = storyRepository.save(jobStory);
 
-        // 1. 마지막 선택 로그 기록
-        StorySelectLog log = StorySelectLog.builder()
-                .story(story)
-                .page(choice.getPage())
-                .choice(choice)
-                .step(story.getCurrentStep())
-                .build();
-        storySelectLogRepository.save(log);
+		saveSceneFromAiResponse(savedJobStory, aiResponse);
+		return savedJobStory;
+	}
 
-        // 2. 스토리 상태 변경
-        story.updateStatus(StoryStatus.RECOMMENDED);
-        storyRepository.save(story);
+	private String findCoreTrait(Story story) {
+		Map<String, Integer> traitCounts = countTraitsInStory(story);
+		return traitCounts.entrySet().stream()
+			.max(Map.Entry.comparingByValue())
+			.map(Map.Entry::getKey)
+			.orElse(null);
+	}
 
-        // 3. 직업 추천 생성 로직 호출
-        jobRecommendationService.generateRecommendations(story);
-    }
+	private List<String> recommendJobsBasedOnTraits(Story story) {
+		Map<String, Integer> traitCounts = countTraitsInStory(story);
+		List<String> topTraits = traitCounts.entrySet().stream()
+			.sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
+			.limit(2).map(Map.Entry::getKey).collect(Collectors.toList());
 
-    @Transactional(readOnly = true)
-    public EndingResponseDto getEnding(Long storyId) {
-        Story story = storyRepository.findById(storyId)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid story Id:" + storyId));
+		List<Trait> traitEntities = traitRepository.findByTagIn(topTraits);
+		List<TraitJob> traitJobs = traitJobRepository.findByTraitIn(traitEntities);
 
-        // AI를 통해 결말 나레이션 생성
-        List<StorySelectLog> history = storySelectLogRepository.findByStoryOrderByStepAsc(story);
-        String narrationJson = storyGenerator.generateEnding(history);
-        JSONObject jsonObject = new JSONObject(narrationJson);
-        String narration = jsonObject.getString("narration");
+		Map<Job, Double> jobScores = new HashMap<>();
+		for (TraitJob traitJob : traitJobs) {
+			String traitTag = traitJob.getTrait().getTag();
+			double score = traitCounts.getOrDefault(traitTag, 0) * traitJob.getWeight();
+			jobScores.put(traitJob.getJob(), jobScores.getOrDefault(traitJob.getJob(), 0.0) + score);
+		}
 
-        // 저장된 직업 추천 목록 조회
-        List<JobRecommendationDto> recommendations = jobRecommendationRepository.findByStory(story).stream()
-                .map(JobRecommendationDto::from)
-                .collect(Collectors.toList());
+		return jobScores.entrySet().stream()
+			.sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
+			.limit(3).map(entry -> entry.getKey().getName()).collect(Collectors.toList());
+	}
 
-        return EndingResponseDto.builder()
-                .narration(narration)
-                .recommendations(recommendations)
-                .build();
-    }
+	private Map<String, Integer> countTraitsInStory(Story story) {
+		List<StorySelectLog> logs = storySelectLogRepository.findByStoryOrderByStepAsc(story);
+		Map<String, Integer> traitCounts = new HashMap<>();
+		for (StorySelectLog log : logs) {
+			String traitsJson = log.getChoice().getTraitsJson();
+			if (StringUtils.hasText(traitsJson)) {
+				try {
+					List<String> traits = objectMapper.readValue(traitsJson, new TypeReference<>() {
+					});
+					for (String trait : traits) {
+						traitCounts.put(trait, traitCounts.getOrDefault(trait, 0) + 1);
+					}
+				} catch (IOException e) {
+					throw new RuntimeException("Failed to deserialize traits from JSON", e);
+				}
+			}
+		}
+		return traitCounts;
+	}
 
-    public Story startJobStory(Long recommendationId) {
-        // 1. 사용자가 선택한 직업 추천 정보를 가져옴
-        JobRecommendation recommendation = jobRecommendationRepository.findById(recommendationId)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid recommendation Id:" + recommendationId));
-        recommendation.select(); // 선택됨 상태로 변경
+	private int saveSceneFromAiResponse(Story story, AiResponseDto aiResponse) {
+		List<String> narrationSections = aiResponse.getNarrationSectionsOrDefault().stream()
+			.filter(StringUtils::hasText)
+			.map(String::trim)
+			.collect(Collectors.toList());
 
-        Story previousStory = recommendation.getStory();
-        Child child = previousStory.getChild();
-        Job selectedJob = recommendation.getJob();
+		int firstNewStep = story.getCurrentStep() + 1;
+		int currentPageStep = firstNewStep;
 
-        // 2. 2부 스토리 새로 생성
-        Story jobStory = Story.builder()
-                .child(child)
-                .theme(previousStory.getTheme()) // 1부와 동일한 테마 유지 또는 변경 가능
-                .status(StoryStatus.JOB_STARTED)
-                .currentStep(1)
-                .selectedJob(selectedJob)
-                .build();
-        storyRepository.save(jobStory);
+		for (String section : narrationSections) {
+			storyPageRepository.save(StoryPage.builder()
+				.story(story)
+				.step(currentPageStep++)
+				.pageType(PageType.PROGRESS)
+				.narration(section)
+				.hasChoice(false)
+				.build());
+		}
 
-        // 3. AI를 통해 2부 스토리의 첫 페이지 생성
-        String generatedJson = storyGenerator.generateJobStoryFirstPage(selectedJob);
-        JSONObject pageJson = new JSONObject(generatedJson);
+		List<AiResponseDto.ChoiceDto> aiChoices = aiResponse.getChoices();
+		boolean hasChoices = aiChoices != null && !aiChoices.isEmpty();
+		String problemNarration = StringUtils.hasText(aiResponse.getProblem()) ? aiResponse.getProblem().trim() : "";
 
-        // 4. 첫 페이지 및 선택지 저장
-        StoryPage firstPage = StoryPage.builder()
-                .story(jobStory)
-                .step(1)
-                .narration(pageJson.getString("narration"))
-                .hasChoice(true)
-                .build();
-        storyPageRepository.save(firstPage);
+		StoryPage choicePage = storyPageRepository.save(StoryPage.builder()
+			.story(story)
+			.step(currentPageStep)
+			.pageType(hasChoices ? PageType.CHOICE : PageType.PROGRESS)
+			.narration(problemNarration)
+			.hasChoice(hasChoices)
+			.build());
 
-        JSONArray choicesJson = pageJson.getJSONArray("choices");
-        for (int i = 0; i < choicesJson.length(); i++) {
-            JSONObject choiceJson = choicesJson.getJSONObject(i);
-            StoryChoice choice = StoryChoice.builder()
-                    .page(firstPage)
-                    .choiceKey(StoryChoice.ChoiceKey.values()[i])
-                    .label(choiceJson.getString("text"))
-                    .build();
-            storyChoiceRepository.save(choice);
-        }
+		for (int i = 0; hasChoices && i < aiChoices.size(); i++) {
+			AiResponseDto.ChoiceDto choiceDto = aiChoices.get(i);
+			try {
+				String traitsJson = objectMapper.writeValueAsString(choiceDto.getTraitsOrDefault());
+				StoryChoice.ChoiceKey choiceKey = resolveChoiceKey(i, choiceDto.getChoiceKey());
+				storyChoiceRepository.save(StoryChoice.builder()
+					.page(choicePage)
+					.choiceKey(choiceKey)
+					.label(choiceDto.getChoiceText())
+					.traitsJson(traitsJson)
+					.build());
+			} catch (JsonProcessingException e) {
+				throw new RuntimeException("Failed to serialize traits to JSON", e);
+			}
+		}
+		story.updateCurrentStep(currentPageStep);
+		return firstNewStep;
+	}
 
-        return jobStory;
-    }
+	private StoryChoice.ChoiceKey resolveChoiceKey(int index, String rawKey) {
+		if (StringUtils.hasText(rawKey)) {
+			try {
+				return StoryChoice.ChoiceKey.valueOf(rawKey.trim().toUpperCase());
+			} catch (IllegalArgumentException ignored) {
+				// fall back to positional mapping below
+			}
+		}
+		StoryChoice.ChoiceKey[] values = StoryChoice.ChoiceKey.values();
+		return values[Math.min(index, values.length - 1)];
+	}
 
-    @Transactional(readOnly = true)
-    public Story getStory(Long storyId) {
-        return storyRepository.findById(storyId)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid story Id:" + storyId));
-    }
-
-    public int makeJobChoice(Long storyId, Long choiceId) {
-        Story story = storyRepository.findById(storyId)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid story Id:" + storyId));
-        StoryChoice choice = storyChoiceRepository.findById(choiceId)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid choice Id:" + choiceId));
-
-        // 1. 선택 로그 기록
-        StorySelectLog log = StorySelectLog.builder()
-                .story(story)
-                .page(choice.getPage())
-                .choice(choice)
-                .step(story.getCurrentStep())
-                .build();
-        storySelectLogRepository.save(log);
-
-        // 2. 스토리 현재 단계 업데이트
-        story.advanceStep();
-        storyRepository.save(story);
-
-        // 3. AI를 통해 다음 페이지 생성
-        List<StorySelectLog> history = storySelectLogRepository.findByStoryOrderByStepAsc(story);
-        String generatedJson = storyGenerator.generateJobStoryNextPage(history);
-        JSONObject pageJson = new JSONObject(generatedJson);
-
-        // 4. 다음 페이지 및 선택지 저장
-        StoryPage nextPage = StoryPage.builder()
-                .story(story)
-                .step(story.getCurrentStep())
-                .narration(pageJson.getString("narration"))
-                .hasChoice(true)
-                .build();
-        storyPageRepository.save(nextPage);
-
-        JSONArray choicesJson = pageJson.getJSONArray("choices");
-        for (int i = 0; i < choicesJson.length(); i++) {
-            JSONObject choiceJson = choicesJson.getJSONObject(i);
-            StoryChoice nextChoice = StoryChoice.builder()
-                    .page(nextPage)
-                    .choiceKey(StoryChoice.ChoiceKey.values()[i])
-                    .label(choiceJson.getString("text"))
-                    .build();
-            storyChoiceRepository.save(nextChoice);
-        }
-
-        return story.getCurrentStep();
-    }
+	@Transactional(readOnly = true)
+	public StoryPageResponseDto getPage(Long storyId, Integer step) {
+		Story story = storyRepository.findById(storyId)
+			.orElseThrow(() -> new IllegalArgumentException("Invalid story Id:" + storyId));
+		StoryPage page = storyPageRepository.findByStoryAndStep(story, step)
+			.orElseThrow(() -> new IllegalArgumentException("Invalid step:" + step));
+		List<ChoiceResponseDto> choices = storyChoiceRepository.findByPage(page)
+			.stream()
+			.map(choice -> ChoiceResponseDto.builder().choiceId(choice.getId()).text(choice.getLabel()).build())
+			.collect(Collectors.toList());
+		return StoryPageResponseDto.from(page, choices);
+	}
 }

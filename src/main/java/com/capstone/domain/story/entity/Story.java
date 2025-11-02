@@ -43,11 +43,11 @@ public class Story {
 	@Column(length = 120)
 	private String title;
 
-	public void advanceStep() {
-		this.currentStep++;
-	}
-
 	public void updateStatus(StoryStatus recommended) {
 		this.status = recommended;
+	}
+
+	public void updateCurrentStep(Integer step) {
+		this.currentStep = step;
 	}
 }

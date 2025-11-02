@@ -8,4 +8,5 @@ import java.util.List;
 
 public interface StorySelectLogRepository extends JpaRepository<StorySelectLog, Long> {
     List<StorySelectLog> findByStoryOrderByStepAsc(Story story);
+    long countByStory(Story story);
 }
