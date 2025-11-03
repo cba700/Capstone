@@ -45,9 +45,9 @@ public class GeminiStoryGenerator implements StoryGenerator {
             "  \"narrationSections\": [\"짧은 문단 1\", \"짧은 문단 2\"],\n" +
             "  \"problem\": \"마지막에 제시할 문제 상황이나 다음 선택 안내\",\n" +
             "  \"choices\": [\n" +
-            "    {\"key\": \"A\", \"text\": \"선택지 문장\", \"traits\": [\"#용기\", \"#협동심\"]},\n" +
-            "    {\"key\": \"B\", \"text\": \"선택지 문장\", \"traits\": [\"#호기심\"]},\n" +
-            "    {\"key\": \"C\", \"text\": \"선택지 문장\", \"traits\": [\"#상상력\"]}\n" +
+            "    {\"key\": \"A\", \"text\": \"선택지 문장\", \"traits\": [\"#용기\", \"#협동심\"], \"jobName\": \"관련된 직업명(필요 시)\"},\n" +
+            "    {\"key\": \"B\", \"text\": \"선택지 문장\", \"traits\": [\"#호기심\"], \"jobName\": null},\n" +
+            "    {\"key\": \"C\", \"text\": \"선택지 문장\", \"traits\": [\"#상상력\"], \"jobName\": null}\n" +
             "  ]\n" +
             "}\n" +
             "```";
@@ -190,7 +190,7 @@ public class GeminiStoryGenerator implements StoryGenerator {
         prompt.append("1. 마지막 선택의 결과와 모두가 행복해지는 결말을 2~3개의 짧은 문단으로 서술합니다.\n");
         prompt.append("2. 토키가 아이를 칭찬하며 자연스럽게 다음 모험으로 가는 갈림길을 소개합니다.\n");
         prompt.append("3. A/B/C 선택지는 각각 추천 직업과 연결된 테마 월드를 소개해야 합니다.\n");
-        prompt.append("4. 이야기 본문 뒤에 JSON 블록을 제공하여, \"problem\" 필드에는 다음 모험 안내 문단을 넣고, \"choices\"에는 추천 직업 3개를 활용한 선택지를 채웁니다.\n");
+        prompt.append("4. 이야기 본문 뒤에 JSON 블록을 제공하여, \"problem\" 필드에는 다음 모험 안내 문단을 넣고, \"choices\"에는 추천 직업 3개를 활용한 선택지를 채웁니다. 각 choice 객체에는 반드시 jobName 속성으로 대응 직업명을 포함하세요.\n");
         prompt.append(JSON_SCHEMA_GUIDE);
         prompt.append("\nJSON 블록에서 choice.text에는 테마 월드와 직업을 모두 언급하고, traits에는 직업에 어울리는 긍정 태그를 제공합니다.\n");
         prompt.append("choice.text에는 태그 표현을 포함하지 마세요.\n");
@@ -271,6 +271,7 @@ public class GeminiStoryGenerator implements StoryGenerator {
                             .choiceKey(asTrimmedText(choice.get("key")))
                             .choiceText(asTrimmedText(choice.get("text")))
                             .traits(parseTraits(choice.get("traits")))
+                            .jobName(asTrimmedOrNull(choice.get("jobName")))
                             .build())
                     .toList();
 
@@ -341,5 +342,10 @@ public class GeminiStoryGenerator implements StoryGenerator {
             return node.asText("").trim();
         }
         return value.toString().trim();
+    }
+
+    private String asTrimmedOrNull(Object value) {
+        String text = asTrimmedText(value);
+        return StringUtils.hasText(text) ? text : null;
     }
 }

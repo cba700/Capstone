@@ -22,9 +22,16 @@
         <!-- Choices -->
         <div th:if="${page.hasChoice}" class="grid md:grid-cols-2 gap-4">
             <div th:each="choice : ${page.choices}">
-                <form th:action="@{/story/{storyId}/choice(storyId=${page.storyId})}" method="post">
+                <form th:if="${#strings.isEmpty(choice.jobName)}" th:action="@{/story/{storyId}/choice(storyId=${page.storyId})}" method="post">
                     <input type="hidden" name="choiceId" th:value="${choice.choiceId}"/>
                     <button type="submit" class="w-full h-full text-left p-6 bg-white border-2 border-gray-200 rounded-2xl hover:border-purple-500 hover:bg-purple-50 transition-all duration-300 transform hover:scale-105">
+                        <p class="font-semibold text-gray-800" th:text="${choice.text}">선택지 텍스트</p>
+                    </button>
+                </form>
+                <form th:unless="${#strings.isEmpty(choice.jobName)}" th:action="@{/story/start-job}" method="post">
+                    <input type="hidden" name="previousStoryId" th:value="${page.storyId}" />
+                    <input type="hidden" name="jobName" th:value="${choice.jobName}" />
+                    <button type="submit" class="w-full h-full text-left p-6 bg-white border-2 border-purple-300 rounded-2xl hover:border-purple-500 hover:bg-purple-50 transition-all duration-300 transform hover:scale-105">
                         <p class="font-semibold text-gray-800" th:text="${choice.text}">선택지 텍스트</p>
                     </button>
                 </form>

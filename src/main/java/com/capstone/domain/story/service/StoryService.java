@@ -5,6 +5,8 @@ import com.capstone.domain.child.repository.ChildRepository;
 import com.capstone.domain.job.entity.Job;
 import com.capstone.domain.job.repository.JobRepository;
 import com.capstone.domain.story.dto.ChoiceResponseDto;
+import com.capstone.domain.story.dto.StoryBookDetailDto;
+import com.capstone.domain.story.dto.StoryBookSummaryDto;
 import com.capstone.domain.story.dto.StoryPageResponseDto;
 import com.capstone.domain.story.dto.request.JobExperienceStartRequestDto;
 import com.capstone.domain.story.dto.request.StoryCompletionRequestDto;
@@ -29,10 +31,12 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.web.util.HtmlUtils;
 
 import java.io.IOException;
 import java.util.*;
@@ -41,10 +45,12 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class StoryService {
 
 	private static final int STORY_CHOICE_LIMIT = 3;
-	private static final List<String> JOB_FALLBACKS = List.of("상상력 탐험가", "친절한 도우미", "용감한 탐험가");
+	private static final List<String> JOB_FALLBACKS = List.of("소방관", "교사", "과학자(실험실 연구원)");
+	private static final int STORY_COMPLETED_REDIRECT = -1;
 
 	private final StoryRepository storyRepository;
 	private final StoryPageRepository storyPageRepository;
@@ -59,6 +65,7 @@ public class StoryService {
 
 	private final ObjectMapper objectMapper = new ObjectMapper();
 
+
 	public Story createStory(Long childId, Long themeId) {
 		Child child = childRepository.findById(childId)
 			.orElseThrow(() -> new IllegalArgumentException("Invalid child Id:" + childId));
@@ -69,7 +76,7 @@ public class StoryService {
 			.childName(child.getName())
 			.childAge(child.getAge())
 			.childGender(child.getGender().toString())
-			.interests(Collections.singletonList(theme.getName()))
+			.interests(buildInterests(theme))
 			.build();
 
 		AiResponseDto aiResponse = storyGenerator.generateStoryStart(requestDto);
@@ -93,6 +100,10 @@ public class StoryService {
 		StoryChoice choice = storyChoiceRepository.findById(choiceId)
 			.orElseThrow(() -> new IllegalArgumentException("Invalid choice Id:" + choiceId));
 
+		if (story.getStatus() == StoryStatus.RECOMMENDED && StringUtils.hasText(choice.getTargetJobName())) {
+			throw new IllegalStateException("직업 추천 단계의 선택지는 /story/start-job으로 전달되어야 합니다.");
+		}
+
 		storySelectLogRepository.save(StorySelectLog.builder()
 			.story(story)
 			.page(choice.getPage())
@@ -100,15 +111,37 @@ public class StoryService {
 			.step(story.getCurrentStep())
 			.build());
 
+		storySelectLogRepository.flush();
 		long choiceCount = storySelectLogRepository.countByStory(story);
+		boolean isJobStory = story.getStatus() == StoryStatus.JOB_STARTED || story.getStatus() == StoryStatus.IN_JOB_PROGRESS;
 
 		if (choiceCount < STORY_CHOICE_LIMIT) {
 			StoryNextStepRequestDto requestDto = StoryNextStepRequestDto.builder()
-				.childName(story.getChild().getName()).childGender(story.getChild().getGender().toString())
-				.previousChoice(choice.getLabel()).currentStep(Math.min((int)choiceCount + 1, STORY_CHOICE_LIMIT)).build();
+				.childName(story.getChild().getName())
+				.childGender(story.getChild().getGender().toString())
+				.previousChoice(choice.getLabel())
+				.currentStep(Math.min((int)choiceCount + 1, STORY_CHOICE_LIMIT))
+				.build();
 			AiResponseDto aiResponse = storyGenerator.generateNextStep(requestDto);
+			if (isJobStory) {
+				story.updateStatus(StoryStatus.IN_JOB_PROGRESS);
+			}
 			return saveSceneFromAiResponse(story, aiResponse);
 		} else {
+			if (isJobStory) {
+				AiResponseDto finalResponse = AiResponseDto.builder()
+					.narrationSections(List.of(
+						"토키: " + story.getChild().getName() + "야, 오늘 " +
+							(story.getSelectedJob() != null ? story.getSelectedJob().getName() : "모험") + " 체험을 멋지게 끝내줬구나!",
+						"모두가 너의 활약에 감동했단다. 잠시 쉬었다가 또 다른 모험을 떠나보자."))
+					.problem(null)
+					.choices(Collections.emptyList())
+					.build();
+				story.updateStatus(StoryStatus.COMPLETED);
+				saveSceneFromAiResponse(story, finalResponse, Collections.emptyList());
+				applyTitleAndSummary(story);
+				return STORY_COMPLETED_REDIRECT;
+			}
 			List<String> recommendedJobs = recommendJobsBasedOnTraits(story);
 			for (int i = recommendedJobs.size(); i < 3; i++) {
 				recommendedJobs.add(JOB_FALLBACKS.get(i % JOB_FALLBACKS.size()));
@@ -118,7 +151,7 @@ public class StoryService {
 				.lastChoice(choice.getLabel()).recommendedJobs(recommendedJobs).build();
 			AiResponseDto aiResponse = storyGenerator.generateStoryCompletion(requestDto);
 			story.updateStatus(StoryStatus.RECOMMENDED);
-			return saveSceneFromAiResponse(story, aiResponse);
+			return saveSceneFromAiResponse(story, aiResponse, recommendedJobs);
 		}
 	}
 
@@ -196,6 +229,10 @@ public class StoryService {
 	}
 
 	private int saveSceneFromAiResponse(Story story, AiResponseDto aiResponse) {
+		return saveSceneFromAiResponse(story, aiResponse, Collections.emptyList());
+	}
+
+	private int saveSceneFromAiResponse(Story story, AiResponseDto aiResponse, List<String> fallbackJobNames) {
 		List<String> narrationSections = aiResponse.getNarrationSectionsOrDefault().stream()
 			.filter(StringUtils::hasText)
 			.map(String::trim)
@@ -231,11 +268,13 @@ public class StoryService {
 			try {
 				String traitsJson = objectMapper.writeValueAsString(choiceDto.getTraitsOrDefault());
 				StoryChoice.ChoiceKey choiceKey = resolveChoiceKey(i, choiceDto.getChoiceKey());
+				String resolvedJobName = resolveJobName(choiceDto.getJobName(), fallbackJobNames, i);
 				storyChoiceRepository.save(StoryChoice.builder()
 					.page(choicePage)
 					.choiceKey(choiceKey)
 					.label(choiceDto.getChoiceText())
 					.traitsJson(traitsJson)
+					.targetJobName(resolvedJobName)
 					.build());
 			} catch (JsonProcessingException e) {
 				throw new RuntimeException("Failed to serialize traits to JSON", e);
@@ -257,6 +296,87 @@ public class StoryService {
 		return values[Math.min(index, values.length - 1)];
 	}
 
+	private String resolveJobName(String rawJobName, List<String> fallbackJobNames, int index) {
+		if (fallbackJobNames.isEmpty()) {
+			return null;
+		}
+		String candidate = StringUtils.hasText(rawJobName) ? rawJobName.trim() : null;
+		if (!StringUtils.hasText(candidate) && index < fallbackJobNames.size()) {
+			candidate = fallbackJobNames.get(index);
+		}
+		if (StringUtils.hasText(candidate)) {
+			final String normalizedCandidate = candidate.replaceAll("\\s+", " ").trim();
+			return fallbackJobNames.stream()
+				.filter(name -> name.equals(normalizedCandidate)
+					|| name.replace(" ", "").equalsIgnoreCase(normalizedCandidate.replace(" ", ""))
+					|| normalizedCandidate.contains(name))
+				.findFirst()
+				.orElse(normalizedCandidate);
+		}
+		return null;
+	}
+
+	private List<String> buildInterests(Theme theme) {
+		LinkedHashSet<String> interests = new LinkedHashSet<>();
+		if (theme != null) {
+			if (StringUtils.hasText(theme.getName())) {
+				interests.add(theme.getName());
+			}
+			if (StringUtils.hasText(theme.getDescription())) {
+				String[] tokens = theme.getDescription().split("[,/\n]");
+				for (String token : tokens) {
+					if (interests.size() >= 3) {
+						break;
+					}
+					String trimmed = token.trim();
+					if (StringUtils.hasText(trimmed)) {
+						interests.add(trimmed);
+					}
+				}
+			}
+		}
+		if (interests.size() < 2) {
+			interests.add("모험");
+		}
+		if (interests.size() < 3) {
+			interests.add("친구와 협동");
+		}
+		return interests.stream().limit(3).toList();
+	}
+
+	@Transactional(readOnly = true)
+	public List<StoryBookSummaryDto> getCompletedBooks(Long childId) {
+		List<Story> stories = storyRepository.findByChildIdAndStatusInOrderByCompletedAtDesc(
+			childId, List.of(StoryStatus.COMPLETED));
+		return stories.stream()
+			.map(story -> StoryBookSummaryDto.builder()
+				.storyId(story.getId())
+				.title(resolveDisplayTitle(story))
+				.summary(resolveDisplaySummary(story))
+				.completedAt(story.getCompletedAt())
+				.build())
+			.toList();
+	}
+
+	@Transactional(readOnly = true)
+	public StoryBookDetailDto getStoryBook(Long storyId, Long childId) {
+		Story story = storyRepository.findById(storyId)
+			.orElseThrow(() -> new IllegalArgumentException("Invalid story Id:" + storyId));
+		if (!story.getChild().getId().equals(childId)) {
+			throw new IllegalArgumentException("Story does not belong to the selected child.");
+		}
+		List<StoryPage> pages = storyPageRepository.findByStoryOrderByStepAsc(story);
+		Map<Long, StorySelectLog> logMap = storySelectLogRepository.findByStoryOrderByStepAsc(story).stream()
+			.collect(Collectors.toMap(log -> log.getPage().getId(), log -> log, (a, b) -> a, LinkedHashMap::new));
+		String contentHtml = buildContentHtml(pages, logMap);
+		return StoryBookDetailDto.builder()
+			.storyId(storyId)
+			.title(resolveDisplayTitle(story))
+			.summary(resolveDisplaySummary(story))
+			.contentHtml(contentHtml)
+			.build();
+	}
+
 	@Transactional(readOnly = true)
 	public StoryPageResponseDto getPage(Long storyId, Integer step) {
 		Story story = storyRepository.findById(storyId)
@@ -265,8 +385,106 @@ public class StoryService {
 			.orElseThrow(() -> new IllegalArgumentException("Invalid step:" + step));
 		List<ChoiceResponseDto> choices = storyChoiceRepository.findByPage(page)
 			.stream()
-			.map(choice -> ChoiceResponseDto.builder().choiceId(choice.getId()).text(choice.getLabel()).build())
+			.map(choice -> ChoiceResponseDto.builder()
+				.choiceId(choice.getId())
+				.text(choice.getLabel())
+				.jobName(choice.getTargetJobName())
+				.build())
 			.collect(Collectors.toList());
 		return StoryPageResponseDto.from(page, choices);
+	}
+
+	private void applyTitleAndSummary(Story story) {
+		if (story == null) {
+			return;
+		}
+		TitleResponseDto titleResponse = null;
+		if (!StringUtils.hasText(story.getTitle())) {
+			try {
+				titleResponse = storyGenerator.generateStorybookTitle(buildTitleGenerationRequest(story));
+			} catch (Exception e) {
+				log.warn("Failed to generate story title for story {}: {}", story.getId(), e.getMessage());
+			}
+		}
+		String titleCandidate = story.getTitle();
+		if (!StringUtils.hasText(titleCandidate)) {
+			if (titleResponse != null && StringUtils.hasText(titleResponse.getTitle())) {
+				titleCandidate = titleResponse.getTitle();
+			} else {
+				titleCandidate = fallbackTitleForStory(story);
+			}
+		}
+		String summaryCandidate = titleResponse != null ? titleResponse.getReason() : story.getSummary();
+		String resolvedSummary = buildSummaryFromStory(story, summaryCandidate);
+		story.updateBookMetadata(titleCandidate, resolvedSummary);
+	}
+
+	private TitleGenerationRequestDto buildTitleGenerationRequest(Story story) {
+		return TitleGenerationRequestDto.builder()
+			.childName(story.getChild().getName())
+			.coreInterests(buildInterests(story.getTheme()))
+			.selectedJob(story.getSelectedJob() != null ? story.getSelectedJob().getName() : null)
+			.mostFrequentTrait(findCoreTrait(story))
+			.build();
+	}
+
+	private String buildSummaryFromStory(Story story, String candidate) {
+		String summary = StringUtils.hasText(candidate) ? candidate.trim() : null;
+		if (!StringUtils.hasText(summary)) {
+			List<StoryPage> pages = storyPageRepository.findByStoryOrderByStepAsc(story);
+			summary = pages.isEmpty() ? "우리의 모험이 멋지게 완성되었어요!" : pages.get(0).getNarration();
+		}
+		return truncate(summary, 120);
+	}
+
+	private String resolveDisplayTitle(Story story) {
+		if (StringUtils.hasText(story.getTitle())) {
+			return story.getTitle();
+		}
+		return fallbackTitleForStory(story);
+	}
+
+	private String fallbackTitleForStory(Story story) {
+		if (story.getSelectedJob() != null) {
+			return story.getSelectedJob().getName() + " 체험기";
+		}
+		if (story.getTheme() != null && StringUtils.hasText(story.getTheme().getName())) {
+			return story.getTheme().getName() + " 모험";
+		}
+		return "나의 모험 이야기";
+	}
+
+	private String resolveDisplaySummary(Story story) {
+		if (StringUtils.hasText(story.getSummary())) {
+			return story.getSummary();
+		}
+		return buildSummaryFromStory(story, null);
+	}
+
+	private String buildContentHtml(List<StoryPage> pages, Map<Long, StorySelectLog> logsByPageId) {
+		StringBuilder sb = new StringBuilder();
+		for (StoryPage page : pages) {
+			if (StringUtils.hasText(page.getNarration())) {
+				sb.append("<p>")
+					.append(HtmlUtils.htmlEscape(page.getNarration()).replace("\n", "<br/>"))
+					.append("</p>");
+			}
+			if (Boolean.TRUE.equals(page.getHasChoice())) {
+				StorySelectLog log = logsByPageId.get(page.getId());
+				if (log != null && log.getChoice() != null && StringUtils.hasText(log.getChoice().getLabel())) {
+					sb.append("<p><strong>나의 선택:</strong> ")
+						.append(HtmlUtils.htmlEscape(log.getChoice().getLabel()))
+						.append("</p>");
+				}
+			}
+		}
+		return sb.toString();
+	}
+
+	private String truncate(String text, int maxLength) {
+		if (!StringUtils.hasText(text) || text.length() <= maxLength) {
+			return text;
+		}
+		return text.substring(0, Math.max(0, maxLength - 3)).trim() + "...";
 	}
 }

@@ -23,6 +23,7 @@ public class AiResponseDto {
         private String choiceKey; // A, B, C 등 분기 식별자
         private String choiceText; // 선택지 텍스트 (예: "첫 번째 길로 간다...")
         private List<String> traits; // 성향 태그 리스트 (예: ["#용기", "#리더십"])
+        private String jobName; // 결말 단계에서 직업 체험으로 이어질 대상 직업명
 
         public List<String> getTraitsOrDefault() {
             return traits != null ? traits : Collections.emptyList();

@@ -10,6 +10,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Getter
 @Builder
@@ -43,11 +45,29 @@ public class Story {
 	@Column(length = 120)
 	private String title;
 
-	public void updateStatus(StoryStatus recommended) {
-		this.status = recommended;
+	@Column(columnDefinition = "TEXT")
+	private String summary;
+
+	@Column(name = "completed_at")
+	private LocalDateTime completedAt;
+
+	public void updateStatus(StoryStatus status) {
+		this.status = status;
+		if (status == StoryStatus.COMPLETED) {
+			this.completedAt = LocalDateTime.now();
+		}
 	}
 
 	public void updateCurrentStep(Integer step) {
 		this.currentStep = step;
+	}
+
+	public void updateBookMetadata(String title, String summary) {
+		if (title != null) {
+			this.title = title;
+		}
+		if (summary != null) {
+			this.summary = summary;
+		}
 	}
 }

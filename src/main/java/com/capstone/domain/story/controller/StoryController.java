@@ -34,6 +34,9 @@ public class StoryController {
     @PostMapping("/{storyId}/choice")
     public String makeChoice(@PathVariable Long storyId, @RequestParam Long choiceId) {
         int nextStep = storyService.makeChoice(storyId, choiceId);
+        if (nextStep < 0) {
+            return "redirect:/main";
+        }
         return "redirect:/story/" + storyId + "/page/" + nextStep;
     }
 

@@ -33,6 +33,9 @@ public class StoryChoice {
 	@Column(columnDefinition = "JSON")
 	private String traitsJson; // 이 선택이 연관된 성향 태그들
 
+	@Column(length = 120)
+	private String targetJobName; // 결말 단계에서 직업 체험으로 연결될 직업명
+
 	public enum ChoiceKey {
 		A, B, C
 	}
