@@ -5,54 +5,360 @@
     <title>테마 선택 - 꿈꾸는 직업 이야기</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        .card-hover {
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        @import url('https://fonts.googleapis.com/css2?family=Gamja+Flower&display=swap');
+
+        body {
+            font-family: 'Gamja+Flower', cursive;
         }
-        .card-hover:hover {
-            transform: translateY(-12px) scale(1.02);
-            box-shadow: 0 30px 60px -12px rgba(50, 50, 93, 0.25), 0 18px 36px -18px rgba(0, 0, 0, 0.3);
+
+        .theme-card {
+            position: relative;
+            overflow: hidden;
+            transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+
+        .theme-card:hover {
+            transform: translateY(-15px) rotate(-2deg);
+        }
+
+        .theme-card:nth-child(even):hover {
+            transform: translateY(-15px) rotate(2deg);
+        }
+
+        .theme-image {
+            width: 100%;
+            height: 250px;
+            object-fit: cover;
+            transition: transform 0.5s ease;
+        }
+
+        .theme-card:hover .theme-image {
+            transform: scale(1.1);
+        }
+
+        .theme-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.8) 100%);
+            opacity: 0;
+            transition: opacity 0.4s ease;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding: 1.5rem;
+        }
+
+        .theme-card:hover .theme-overlay {
+            opacity: 1;
+        }
+
+        .theme-badge {
+            position: absolute;
+            top: -10px;
+            left: -10px;
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            padding: 0.5rem 1rem;
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: bold;
+            color: white;
+            box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
+            transform: rotate(-10deg);
+            z-index: 10;
+        }
+
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(147, 51, 234, 0.95) 0%, rgba(236, 72, 153, 0.95) 100%);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .loading-overlay.active {
+            display: flex;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .loading-content {
+            text-align: center;
+            animation: slideUp 0.5s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .loading-spinner {
+            max-width: 200px;
+            max-height: 200px;
+            filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.3));
+            margin-bottom: 2rem;
+        }
+
+        .loading-text {
+            font-size: 2rem;
+            font-weight: 800;
+            color: white;
+            margin-bottom: 1rem;
+            text-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .loading-subtext {
+            font-size: 1.1rem;
+            color: rgba(255, 255, 255, 0.9);
+            font-weight: 500;
+        }
+
+        .dots {
+            display: inline-block;
+        }
+
+        .dots span {
+            animation: blink 1.4s infinite;
+            opacity: 0;
+        }
+
+        .dots span:nth-child(1) {
+            animation-delay: 0s;
+        }
+
+        .dots span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .dots span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes blink {
+            0%, 20% { opacity: 0; }
+            40% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        .sparkle {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .sparkle::before,
+        .sparkle::after {
+            content: '✨';
+            position: absolute;
+            font-size: 2rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        .sparkle::before {
+            top: 20%;
+            left: 20%;
+            animation-delay: 0s;
+        }
+
+        .sparkle::after {
+            top: 60%;
+            right: 20%;
+            animation-delay: 1.5s;
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0) rotate(0deg);
+                opacity: 0;
+            }
+            50% {
+                transform: translateY(-30px) rotate(180deg);
+                opacity: 1;
+            }
+        }
+
+        .storybook-container {
+            position: relative;
+        }
+
+        .storybook-container::before {
+            content: '📚';
+            position: absolute;
+            font-size: 3rem;
+            top: -20px;
+            left: -20px;
+            animation: bounce 2s ease-in-out infinite;
+        }
+
+        .storybook-container::after {
+            content: '🎨';
+            position: absolute;
+            font-size: 3rem;
+            top: -20px;
+            right: -20px;
+            animation: bounce 2s ease-in-out infinite;
+            animation-delay: 1s;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .cloud {
+            position: absolute;
+            background: white;
+            border-radius: 100px;
+            opacity: 0.7;
+            animation: drift 20s linear infinite;
+        }
+
+        .cloud-1 {
+            width: 100px;
+            height: 40px;
+            top: 10%;
+            left: -100px;
+        }
+
+        .cloud-2 {
+            width: 150px;
+            height: 50px;
+            top: 30%;
+            left: -150px;
+            animation-delay: 5s;
+        }
+
+        .cloud-3 {
+            width: 120px;
+            height: 45px;
+            top: 60%;
+            left: -120px;
+            animation-delay: 10s;
+        }
+
+        @keyframes drift {
+            from { left: -200px; }
+            to { left: calc(100% + 200px); }
         }
     </style>
 </head>
-<body class="min-h-screen bg-gradient-to-br from-purple-100 via-pink-50 to-blue-100 py-8">
-<div class="max-w-6xl mx-auto px-4">
+<body class="min-h-screen bg-gradient-to-br from-purple-100 via-pink-50 to-blue-100 py-8 relative overflow-hidden">
+
+<!-- 떠다니는 구름들 -->
+<div class="cloud cloud-1"></div>
+<div class="cloud cloud-2"></div>
+<div class="cloud cloud-3"></div>
+
+<!-- 로딩 오버레이 -->
+<div id="loadingOverlay" class="loading-overlay">
+    <div class="sparkle"></div>
+    <div class="loading-content">
+        <img src="/images/toki.gif" alt="이야기 생성 중" class="loading-spinner mx-auto">
+        <div class="loading-text">
+            이야기 생성 중<span class="dots"><span>.</span><span>.</span><span>.</span></span>
+        </div>
+        <div class="loading-subtext">
+            마법같은 모험이 곧 시작됩니다! 🌟
+        </div>
+    </div>
+</div>
+
+<div class="max-w-6xl mx-auto px-4 relative z-10">
     <div class="flex flex-col gap-4 mb-8">
-        <a href="/main" class="inline-flex items-center gap-2 text-purple-600 hover:text-purple-800 font-semibold">
-            <span class="text-lg">←</span>
+        <a href="/main" class="inline-flex items-center gap-2 text-purple-600 hover:text-purple-800 font-bold text-xl">
+            <span class="text-2xl">←</span>
             <span>메인으로 돌아가기</span>
         </a>
-        <div>
-            <h1 class="text-3xl font-bold text-gray-800">새로운 이야기 준비하기</h1>
-            <p class="text-gray-600">모험을 떠날 아이를 확인하고, 마음에 드는 테마를 골라주세요!</p>
+        <div class="text-center">
+            <h1 class="text-5xl font-bold text-purple-700 mb-3 drop-shadow-lg">✨ 어떤 이야기를 만들까? ✨</h1>
+            <p class="text-2xl text-gray-700">마음에 드는 그림을 골라보세요! 🎈</p>
         </div>
     </div>
 
-    <div>
-        <h2 class="text-2xl font-bold text-gray-800 mb-4">테마 고르기</h2>
+    <div class="storybook-container">
         <div id="themeGrid" class="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
 
             <!-- Thymeleaf each loop for themes -->
-            <div th:each="theme : ${themes}" class="bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl p-6 flex flex-col card-hover">
-                <form th:action="@{/story/create}" method="post" class="flex flex-col h-full">
-                    <!-- Hidden inputs for childId and themeId -->
+            <div th:each="theme : ${themes}" class="theme-card bg-white rounded-3xl shadow-2xl overflow-hidden">
+                <div class="theme-badge" th:text="${theme.name}">테마 이름</div>
+
+                <form th:action="@{/story/create}" method="post" onsubmit="showLoading()">
                     <input type="hidden" name="childId" th:value="${childId}" />
                     <input type="hidden" name="themeId" th:value="${theme.id}" />
 
-                    <div class="flex-grow">
-                        <div class="text-sm font-bold text-purple-500 uppercase tracking-wider" th:text="${theme.name}">테마 이름</div>
-                        <p class="text-gray-600 text-sm mt-2 h-16" th:text="${theme.description}">테마 설명</p>
+                    <div class="relative cursor-pointer">
+                        <!-- 테마 이미지 (실제 이미지 경로로 변경 필요) -->
+                        <img th:src="@{'/images/themes/' + ${theme.id} + '.jpg'}"
+                             th:alt="${theme.name}"
+                             class="theme-image"
+                             onerror="this.src='https://via.placeholder.com/400x250?text=' + encodeURIComponent(this.alt)">
+
+                        <!-- 호버 시 나타나는 텍스트 오버레이 -->
+                        <div class="theme-overlay">
+                            <h3 class="text-3xl font-bold text-white mb-3" th:text="${theme.name}">테마 이름</h3>
+                            <p class="text-white text-xl leading-relaxed" th:text="${theme.description}">테마 설명</p>
+                            <button type="submit" class="mt-4 bg-yellow-400 text-purple-800 px-6 py-3 rounded-full font-bold text-xl shadow-lg hover:bg-yellow-300 transition-colors">
+                                이 이야기 시작하기! 🚀
+                            </button>
+                        </div>
                     </div>
-                    <button type="submit" class="mt-4 w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl px-4 py-3 font-semibold hover:shadow-lg transition-shadow">
-                        이 테마로 이야기 시작
-                    </button>
                 </form>
             </div>
 
             <div th:if="${#lists.isEmpty(themes)}" class="col-span-full text-center text-gray-500 py-10">
-                <p>현재 선택할 수 있는 테마가 없습니다.</p>
+                <p class="text-2xl">🎭 현재 선택할 수 있는 테마가 없습니다.</p>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+    let isSubmitting = false;
+
+    function showLoading() {
+        if (isSubmitting) {
+            return false;
+        }
+
+        isSubmitting = true;
+        document.getElementById('loadingOverlay').classList.add('active');
+
+        const buttons = document.querySelectorAll('button[type="submit"]');
+        buttons.forEach(button => {
+            button.disabled = true;
+        });
+
+        return true;
+    }
+
+    window.addEventListener('pageshow', function(event) {
+        isSubmitting = false;
+        document.getElementById('loadingOverlay').classList.remove('active');
+
+        const buttons = document.querySelectorAll('button[type="submit"]');
+        buttons.forEach(button => {
+            button.disabled = false;
+        });
+    });
+</script>
+
 </body>
 </html>
