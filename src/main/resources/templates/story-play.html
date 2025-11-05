@@ -69,13 +69,13 @@
                       onsubmit="showLoading()">
                     <input type="hidden" name="previousStoryId" th:value="${page.storyId}" />
                     <input type="hidden" name="jobName" th:value="${choice.jobName}" />
+                    <input type="hidden" name="themeWorld" th:value="${choice.themeWorld}" />
                     <button type="submit" class="w-full h-full text-left p-6 bg-white border-2 border-purple-300 rounded-2xl hover:border-purple-500 hover:bg-purple-50 transition-all duration-300 transform hover:scale-105">
                         <p class="font-semibold text-gray-800" th:text="${choice.text}">선택지 텍스트</p>
                     </button>
                 </form>
             </div>
         </div>
-
         <!-- Next Button -->
         <div th:unless="${page.hasChoice}" class="text-center">
             <a th:href="@{/story/{storyId}/page/{nextStep}(storyId=${page.storyId}, nextStep=${page.step + 1})}"

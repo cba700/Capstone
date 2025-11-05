@@ -3,6 +3,7 @@ package com.capstone.domain.story.dto.request;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.util.Collections;
 import java.util.List;
 
 // 2. 결과 생성 요청 DTO (스토리 중간 과정)
@@ -20,6 +21,10 @@ public class StoryNextStepRequestDto {
     private String pet;
     private String personality;
 
-    // 새로운 선택지에 부여할 태그들
-    private List<String> newTraitTags;
+    // 새로운 선택지에 부여할 태그 후보 (선택지 수 만큼 각 3개씩 제공)
+    private List<List<String>> choiceTraitCandidates;
+
+    public List<List<String>> getChoiceTraitCandidatesOrDefault() {
+        return choiceTraitCandidates != null ? choiceTraitCandidates : Collections.emptyList();
+    }
 }

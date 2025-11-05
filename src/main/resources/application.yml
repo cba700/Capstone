@@ -27,6 +27,8 @@ spring:
     jdbc:
       initialize-schema: always
 
+  profiles:
+    active: local
 
 gemini:
   api-key: "AIzaSyBWz-lBKXqfrgmMkUnpXTWefelCYrsTh_I"

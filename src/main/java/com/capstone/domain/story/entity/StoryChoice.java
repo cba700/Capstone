@@ -36,6 +36,9 @@ public class StoryChoice {
 	@Column(length = 120)
 	private String targetJobName; // 결말 단계에서 직업 체험으로 연결될 직업명
 
+	@Column(length = 120)
+	private String targetThemeWorld; // 결말 단계에서 안내된 테마 월드 이름
+
 	public enum ChoiceKey {
 		A, B, C
 	}

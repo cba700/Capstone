@@ -9,9 +9,9 @@ import java.util.List;
 public record StoryPageResponseDto(
         Long storyId,
         Integer step,
-        String themeName, // 테마 이름 필드 추가
+        String themeName,
         String narration,
-        boolean hasChoice, // 선택지 유무 필드 추가
+        boolean hasChoice,
         List<ChoiceResponseDto> choices
 ) {
     public static StoryPageResponseDto from(StoryPage page, List<ChoiceResponseDto> choices) {

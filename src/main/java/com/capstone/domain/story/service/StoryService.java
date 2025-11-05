@@ -40,6 +40,7 @@ import org.springframework.web.util.HtmlUtils;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 @Service
@@ -50,6 +51,8 @@ public class StoryService {
 
 	private static final int STORY_CHOICE_LIMIT = 3;
 	private static final List<String> JOB_FALLBACKS = List.of("소방관", "교사", "과학자(실험실 연구원)");
+	private static final List<String> DEFAULT_TRAIT_TAGS = List.of("#용기", "#상상력", "#협동심", "#친절", "#탐구심");
+	private static final int TRAITS_PER_CHOICE = 3;
 	private static final int STORY_COMPLETED_REDIRECT = -1;
 
 	private final StoryRepository storyRepository;
@@ -77,6 +80,7 @@ public class StoryService {
 			.childAge(child.getAge())
 			.childGender(child.getGender().toString())
 			.interests(buildInterests(theme))
+			.choiceTraitCandidates(prepareTraitCandidates(Collections.emptyList(), Collections.emptyMap()))
 			.build();
 
 		AiResponseDto aiResponse = storyGenerator.generateStoryStart(requestDto);
@@ -114,13 +118,20 @@ public class StoryService {
 		storySelectLogRepository.flush();
 		long choiceCount = storySelectLogRepository.countByStory(story);
 		boolean isJobStory = story.getStatus() == StoryStatus.JOB_STARTED || story.getStatus() == StoryStatus.IN_JOB_PROGRESS;
+		List<String> selectedTraits = parseTraits(choice.getTraitsJson());
+		log.info("[Story {}] Step {} choice '{}', traits {}", story.getId(), story.getCurrentStep(), choice.getLabel(), selectedTraits);
+		Map<String, Integer> traitSnapshot = countTraitsInStory(story);
+		log.info("[Story {}] Trait counts after step {}: {}", story.getId(), choiceCount, traitSnapshot);
 
 		if (choiceCount < STORY_CHOICE_LIMIT) {
+			List<List<String>> nextTraitTagGroups = prepareTraitCandidates(selectedTraits, traitSnapshot);
+			log.info("[Story {}] Suggested tag groups for next step {}: {}", story.getId(), choiceCount + 1, nextTraitTagGroups);
 			StoryNextStepRequestDto requestDto = StoryNextStepRequestDto.builder()
 				.childName(story.getChild().getName())
 				.childGender(story.getChild().getGender().toString())
 				.previousChoice(choice.getLabel())
 				.currentStep(Math.min((int)choiceCount + 1, STORY_CHOICE_LIMIT))
+				.choiceTraitCandidates(nextTraitTagGroups)
 				.build();
 			AiResponseDto aiResponse = storyGenerator.generateNextStep(requestDto);
 			if (isJobStory) {
@@ -155,7 +166,7 @@ public class StoryService {
 		}
 	}
 
-	public Story startJobStory(Long previousStoryId, String jobName) {
+	public Story startJobStory(Long previousStoryId, String jobName, String themeWorld) {
 		Story previousStory = storyRepository.findById(previousStoryId)
 			.orElseThrow(() -> new IllegalArgumentException("Invalid story Id:" + previousStoryId));
 		Child child = previousStory.getChild();
@@ -163,10 +174,11 @@ public class StoryService {
 			.orElseThrow(() -> new IllegalArgumentException("Invalid job name: " + jobName));
 
 		String coreTrait = findCoreTrait(previousStory);
+		String resolvedThemeWorld = StringUtils.hasText(themeWorld) ? themeWorld.trim() : job.getName() + " 나라";
 
 		JobExperienceStartRequestDto requestDto = JobExperienceStartRequestDto.builder()
 			.childName(child.getName()).childGender(child.getGender().toString())
-			.selectedJob(job.getName()).themeWorld(job.getName() + " 나라") // 테마월드 임시 생성
+			.selectedJob(job.getName()).themeWorld(resolvedThemeWorld)
 			.coreTrait(coreTrait).build();
 
 		AiResponseDto aiResponse = storyGenerator.generateJobExperienceStart(requestDto);
@@ -189,43 +201,143 @@ public class StoryService {
 
 	private List<String> recommendJobsBasedOnTraits(Story story) {
 		Map<String, Integer> traitCounts = countTraitsInStory(story);
-		List<String> topTraits = traitCounts.entrySet().stream()
-			.sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
-			.limit(2).map(Map.Entry::getKey).collect(Collectors.toList());
-
-		List<Trait> traitEntities = traitRepository.findByTagIn(topTraits);
-		List<TraitJob> traitJobs = traitJobRepository.findByTraitIn(traitEntities);
-
-		Map<Job, Double> jobScores = new HashMap<>();
-		for (TraitJob traitJob : traitJobs) {
-			String traitTag = traitJob.getTrait().getTag();
-			double score = traitCounts.getOrDefault(traitTag, 0) * traitJob.getWeight();
-			jobScores.put(traitJob.getJob(), jobScores.getOrDefault(traitJob.getJob(), 0.0) + score);
+		Map<String, Integer> canonicalTraitCounts = new HashMap<>();
+		for (Map.Entry<String, Integer> entry : traitCounts.entrySet()) {
+			String canonical = stripTraitDecorations(entry.getKey());
+			if (canonical != null) {
+				canonicalTraitCounts.merge(canonical, entry.getValue(), Integer::sum);
+			}
 		}
 
-		return jobScores.entrySet().stream()
+		List<String> topCanonicalTraits = canonicalTraitCounts.entrySet().stream()
 			.sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
-			.limit(3).map(entry -> entry.getKey().getName()).collect(Collectors.toList());
+			.limit(3)
+			.map(Map.Entry::getKey)
+			.toList();
+
+		LinkedHashSet<String> recommendedJobs = new LinkedHashSet<>();
+		for (String canonicalTrait : topCanonicalTraits) {
+			Optional<Trait> traitOpt = resolveTraitEntity(canonicalTrait);
+			if (traitOpt.isEmpty()) {
+				log.info("[Story {}] No trait entity found for canonical tag '{}'", story.getId(), canonicalTrait);
+				continue;
+			}
+			Trait trait = traitOpt.get();
+			List<TraitJob> rankedJobs = new ArrayList<>(traitJobRepository.findByTraitIn(List.of(trait)));
+			rankedJobs.sort(Comparator.comparing(TraitJob::getWeight).reversed());
+			Optional<String> topJobName = rankedJobs.stream()
+				.map(TraitJob::getJob)
+				.map(Job::getName)
+				.filter(StringUtils::hasText)
+				.filter(name -> !recommendedJobs.contains(name))
+				.findFirst();
+			if (topJobName.isPresent()) {
+				recommendedJobs.add(topJobName.get());
+			} else {
+				log.info("[Story {}] No distinct job recommendation left for trait '{}'", story.getId(), canonicalTrait);
+			}
+		}
+
+		log.info("[Story {}] Trait totals {} (canonical {}) -> preliminary jobs {}", story.getId(), traitCounts, canonicalTraitCounts, recommendedJobs);
+
+		List<String> finalList = new ArrayList<>(recommendedJobs);
+		for (String fallback : JOB_FALLBACKS) {
+			if (finalList.size() >= 3) {
+				break;
+			}
+			if (!finalList.contains(fallback)) {
+				finalList.add(fallback);
+			}
+		}
+
+		if (finalList.size() > 3) {
+			finalList = finalList.subList(0, 3);
+		}
+
+		log.info("[Story {}] Recommended jobs (fallback applied if needed): {}", story.getId(), finalList);
+		return finalList;
 	}
 
 	private Map<String, Integer> countTraitsInStory(Story story) {
 		List<StorySelectLog> logs = storySelectLogRepository.findByStoryOrderByStepAsc(story);
 		Map<String, Integer> traitCounts = new HashMap<>();
 		for (StorySelectLog log : logs) {
-			String traitsJson = log.getChoice().getTraitsJson();
-			if (StringUtils.hasText(traitsJson)) {
-				try {
-					List<String> traits = objectMapper.readValue(traitsJson, new TypeReference<>() {
-					});
-					for (String trait : traits) {
-						traitCounts.put(trait, traitCounts.getOrDefault(trait, 0) + 1);
-					}
-				} catch (IOException e) {
-					throw new RuntimeException("Failed to deserialize traits from JSON", e);
-				}
+			for (String trait : parseTraits(log.getChoice().getTraitsJson())) {
+				traitCounts.put(trait, traitCounts.getOrDefault(trait, 0) + 1);
 			}
 		}
 		return traitCounts;
+	}
+
+	private List<List<String>> prepareTraitCandidates(List<String> selectedTraits, Map<String, Integer> traitSnapshot) {
+		int choiceCount = StoryChoice.ChoiceKey.values().length;
+		LinkedHashSet<String> ordered = new LinkedHashSet<>();
+
+		if (selectedTraits != null) {
+			selectedTraits.stream()
+				.forEach(tag -> {
+					Optional<String> resolved = resolveTraitTagFromCandidate(tag);
+					if (resolved.isPresent()) {
+						ordered.add(resolved.get());
+					} else if (StringUtils.hasText(tag)) {
+						ordered.add(tag.trim());
+					}
+				});
+		}
+
+		if (traitSnapshot != null && !traitSnapshot.isEmpty()) {
+			traitSnapshot.entrySet().stream()
+				.sorted(Map.Entry.<String, Integer>comparingByValue(Comparator.reverseOrder()))
+				.forEach(entry -> {
+					Optional<String> resolved = resolveTraitTagFromCandidate(entry.getKey());
+					resolved.ifPresent(ordered::add);
+				});
+		}
+
+		List<String> allTraitTags = traitRepository.findAll().stream()
+			.map(Trait::getTag)
+			.filter(StringUtils::hasText)
+			.collect(Collectors.toList());
+
+		if (!allTraitTags.isEmpty()) {
+			List<String> shuffled = new ArrayList<>(allTraitTags);
+			Collections.shuffle(shuffled, ThreadLocalRandom.current());
+			ordered.addAll(shuffled);
+		}
+
+		ordered.addAll(DEFAULT_TRAIT_TAGS);
+
+		List<String> pool = new ArrayList<>(ordered);
+		if (pool.isEmpty()) {
+			pool.addAll(DEFAULT_TRAIT_TAGS);
+		}
+
+		int required = choiceCount * TRAITS_PER_CHOICE;
+		while (pool.size() < required && !allTraitTags.isEmpty()) {
+			Collections.shuffle(allTraitTags, ThreadLocalRandom.current());
+			pool.addAll(allTraitTags);
+		}
+
+		if (pool.size() < required) {
+			while (pool.size() < required) {
+				pool.add(DEFAULT_TRAIT_TAGS.get(pool.size() % DEFAULT_TRAIT_TAGS.size()));
+			}
+		}
+
+		List<List<String>> result = new ArrayList<>();
+		int cursor = 0;
+		for (int i = 0; i < choiceCount; i++) {
+			List<String> tagsForChoice = new ArrayList<>();
+			for (int j = 0; j < TRAITS_PER_CHOICE; j++) {
+				if (pool.isEmpty()) {
+					break;
+				}
+				tagsForChoice.add(pool.get(cursor % pool.size()));
+				cursor++;
+			}
+			result.add(tagsForChoice);
+		}
+		return result;
 	}
 
 	private int saveSceneFromAiResponse(Story story, AiResponseDto aiResponse) {
@@ -269,12 +381,14 @@ public class StoryService {
 				String traitsJson = objectMapper.writeValueAsString(choiceDto.getTraitsOrDefault());
 				StoryChoice.ChoiceKey choiceKey = resolveChoiceKey(i, choiceDto.getChoiceKey());
 				String resolvedJobName = resolveJobName(choiceDto.getJobName(), fallbackJobNames, i);
+				String resolvedThemeWorld = resolveThemeWorld(choiceDto.getThemeWorld(), resolvedJobName);
 				storyChoiceRepository.save(StoryChoice.builder()
 					.page(choicePage)
 					.choiceKey(choiceKey)
 					.label(choiceDto.getChoiceText())
 					.traitsJson(traitsJson)
 					.targetJobName(resolvedJobName)
+					.targetThemeWorld(resolvedThemeWorld)
 					.build());
 			} catch (JsonProcessingException e) {
 				throw new RuntimeException("Failed to serialize traits to JSON", e);
@@ -314,6 +428,43 @@ public class StoryService {
 				.orElse(normalizedCandidate);
 		}
 		return null;
+	}
+
+	private String resolveThemeWorld(String rawThemeWorld, String resolvedJobName) {
+		if (StringUtils.hasText(rawThemeWorld)) {
+			return rawThemeWorld.replaceAll("\\s+", " ").trim();
+		}
+		if (StringUtils.hasText(resolvedJobName)) {
+			return resolvedJobName.trim() + " 나라";
+		}
+		return null;
+	}
+
+	private String stripTraitDecorations(String tag) {
+		if (!StringUtils.hasText(tag)) {
+			return null;
+		}
+		String collapsed = tag.trim().replace("#", "").replaceAll("\\s+", "");
+		return StringUtils.hasText(collapsed) ? collapsed : null;
+	}
+
+	private Optional<Trait> resolveTraitEntity(String canonicalTag) {
+		if (!StringUtils.hasText(canonicalTag)) {
+			return Optional.empty();
+		}
+		String normalized = canonicalTag.trim();
+		String plain = normalized.startsWith("#") ? normalized.substring(1) : normalized;
+		if (!StringUtils.hasText(plain)) {
+			return Optional.empty();
+		}
+		String hashed = plain.startsWith("#") ? plain : "#" + plain;
+		return traitRepository.findByTag(plain)
+			.or(() -> traitRepository.findByTag(hashed));
+	}
+
+	private Optional<String> resolveTraitTagFromCandidate(String candidateTag) {
+		String canonical = stripTraitDecorations(candidateTag);
+		return resolveTraitEntity(canonical).map(Trait::getTag);
 	}
 
 	private List<String> buildInterests(Theme theme) {
@@ -389,6 +540,7 @@ public class StoryService {
 				.choiceId(choice.getId())
 				.text(choice.getLabel())
 				.jobName(choice.getTargetJobName())
+				.themeWorld(choice.getTargetThemeWorld())
 				.build())
 			.collect(Collectors.toList());
 		return StoryPageResponseDto.from(page, choices);
@@ -479,6 +631,19 @@ public class StoryService {
 			}
 		}
 		return sb.toString();
+	}
+
+	private List<String> parseTraits(String traitsJson) {
+		if (!StringUtils.hasText(traitsJson)) {
+			return Collections.emptyList();
+		}
+		try {
+			return objectMapper.readValue(traitsJson, new TypeReference<List<String>>() {
+			});
+		} catch (IOException e) {
+			log.warn("Failed to parse traits JSON: {}", e.getMessage());
+			return Collections.emptyList();
+		}
 	}
 
 	private String truncate(String text, int maxLength) {

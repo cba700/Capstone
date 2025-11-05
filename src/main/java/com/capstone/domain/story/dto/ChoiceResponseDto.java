@@ -6,6 +6,7 @@ import lombok.Builder;
 public record ChoiceResponseDto(
         Long choiceId,
         String text,
-        String jobName
+        String jobName,
+        String themeWorld
 ) {
 }

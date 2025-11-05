@@ -24,9 +24,14 @@ public class AiResponseDto {
         private String choiceText; // 선택지 텍스트 (예: "첫 번째 길로 간다...")
         private List<String> traits; // 성향 태그 리스트 (예: ["#용기", "#리더십"])
         private String jobName; // 결말 단계에서 직업 체험으로 이어질 대상 직업명
+        private String themeWorld; // 결말 선택지에서 안내한 테마 월드 이름 (예: "무지개 별빛 공방")
 
         public List<String> getTraitsOrDefault() {
             return traits != null ? traits : Collections.emptyList();
+        }
+
+        public String getThemeWorldOrDefault(String fallback) {
+            return themeWorld != null && !themeWorld.isBlank() ? themeWorld : fallback;
         }
     }
 }

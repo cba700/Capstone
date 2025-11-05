@@ -41,8 +41,8 @@ public class StoryController {
     }
 
     @PostMapping("/start-job")
-    public String startJobStory(@RequestParam Long previousStoryId, @RequestParam String jobName) {
-        Story newStory = storyService.startJobStory(previousStoryId, jobName);
+    public String startJobStory(@RequestParam Long previousStoryId, @RequestParam String jobName, @RequestParam(required = false) String themeWorld) {
+        Story newStory = storyService.startJobStory(previousStoryId, jobName, themeWorld);
         return "redirect:/story/" + newStory.getId() + "/page/1";
     }
 
