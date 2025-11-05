@@ -1,7 +1,9 @@
 package com.capstone.domain.story.dto;
 
 import com.capstone.domain.story.entity.StoryPage;
+import com.capstone.domain.story.entity.StoryStatus;
 import lombok.Builder;
+import org.springframework.util.StringUtils;
 
 import java.util.List;
 
@@ -12,7 +14,9 @@ public record StoryPageResponseDto(
         String themeName,
         String narration,
         boolean hasChoice,
-        List<ChoiceResponseDto> choices
+        List<ChoiceResponseDto> choices,
+        String storyTitle,
+        boolean completion
 ) {
     public static StoryPageResponseDto from(StoryPage page, List<ChoiceResponseDto> choices) {
         return StoryPageResponseDto.builder()
@@ -22,6 +26,8 @@ public record StoryPageResponseDto(
                 .narration(page.getNarration())
                 .hasChoice(page.getHasChoice())
                 .choices(choices)
+                .storyTitle(StringUtils.hasText(page.getStory().getTitle()) ? page.getStory().getTitle() : null)
+                .completion(!page.getHasChoice() && page.getStory().getStatus() == StoryStatus.COMPLETED)
                 .build();
     }
 }

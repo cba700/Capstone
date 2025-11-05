@@ -51,6 +51,11 @@
             <p class="text-gray-800 text-lg leading-relaxed whitespace-pre-line" th:text="${page.narration}">나레이션이 여기에 표시됩니다.</p>
         </div>
 
+        <div th:if="${page.storyTitle != null}" class="bg-white border border-purple-200 rounded-2xl p-4 mb-6">
+            <p class="text-sm uppercase text-purple-500 font-semibold">이야기 제목</p>
+            <p class="text-xl font-bold text-gray-800" th:text="${page.storyTitle}">우리의 멋진 이야기</p>
+        </div>
+
         <!-- Choices -->
         <div th:if="${page.hasChoice}" class="grid md:grid-cols-2 gap-4">
             <div th:each="choice : ${page.choices}">
@@ -76,12 +81,24 @@
                 </form>
             </div>
         </div>
-        <!-- Next Button -->
-        <div th:unless="${page.hasChoice}" class="text-center">
-            <a th:href="@{/story/{storyId}/page/{nextStep}(storyId=${page.storyId}, nextStep=${page.step + 1})}"
-               class="inline-block px-8 py-4 bg-purple-600 text-white font-bold rounded-full hover:bg-purple-700 transition-transform transform hover:scale-105">
-                다음으로 &rarr;
-            </a>
+        <!-- Completion / Progress Buttons -->
+        <div th:unless="${page.hasChoice}" class="text-center space-y-6">
+            <div th:if="${page.completion}" class="space-y-4">
+                <div class="bg-orange-50 border border-orange-200 rounded-2xl p-6">
+                    <p class="text-xl font-semibold text-orange-600">토키: 모험이 멋지게 끝났단다!</p>
+                    <p class="text-gray-600 mt-2">메인 화면에서 다음 모험을 함께 골라보자!</p>
+                </div>
+                <a href="/main"
+                   class="inline-block px-8 py-4 bg-purple-600 text-white font-bold rounded-full hover:bg-purple-700 transition-transform transform hover:scale-105">
+                    메인으로 돌아가기
+                </a>
+            </div>
+            <div th:if="${!page.completion}">
+                <a th:href="@{/story/{storyId}/page/{nextStep}(storyId=${page.storyId}, nextStep=${page.step + 1})}"
+                   class="inline-block px-8 py-4 bg-purple-600 text-white font-bold rounded-full hover:bg-purple-700 transition-transform transform hover:scale-105">
+                    다음으로 &rarr;
+                </a>
+            </div>
         </div>
     </div>
 

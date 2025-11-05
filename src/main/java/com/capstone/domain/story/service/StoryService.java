@@ -53,7 +53,6 @@ public class StoryService {
 	private static final List<String> JOB_FALLBACKS = List.of("소방관", "교사", "과학자(실험실 연구원)");
 	private static final List<String> DEFAULT_TRAIT_TAGS = List.of("#용기", "#상상력", "#협동심", "#친절", "#탐구심");
 	private static final int TRAITS_PER_CHOICE = 3;
-	private static final int STORY_COMPLETED_REDIRECT = -1;
 
 	private final StoryRepository storyRepository;
 	private final StoryPageRepository storyPageRepository;
@@ -149,9 +148,9 @@ public class StoryService {
 					.choices(Collections.emptyList())
 					.build();
 				story.updateStatus(StoryStatus.COMPLETED);
-				saveSceneFromAiResponse(story, finalResponse, Collections.emptyList());
+				int nextStepForCompletion = saveSceneFromAiResponse(story, finalResponse, Collections.emptyList());
 				applyTitleAndSummary(story);
-				return STORY_COMPLETED_REDIRECT;
+				return nextStepForCompletion;
 			}
 			List<String> recommendedJobs = recommendJobsBasedOnTraits(story);
 			for (int i = recommendedJobs.size(); i < 3; i++) {
@@ -531,7 +530,7 @@ public class StoryService {
 	@Transactional(readOnly = true)
 	public StoryPageResponseDto getPage(Long storyId, Integer step) {
 		Story story = storyRepository.findById(storyId)
-			.orElseThrow(() -> new IllegalArgumentException("Invalid story Id:" + storyId));
+			.orElseThrow(() -> new IllegalArgumentException("Invalid finishStory Id:" + storyId));
 		StoryPage page = storyPageRepository.findByStoryAndStep(story, step)
 			.orElseThrow(() -> new IllegalArgumentException("Invalid step:" + step));
 		List<ChoiceResponseDto> choices = storyChoiceRepository.findByPage(page)
