@@ -11,10 +11,21 @@ public class GeminiConfig {
     @Value("${gemini.api-key}")
     private String apiKey;
 
+    @Value("${gemini.location:global}")
+    private String location;
+
     @Bean
     public Client geminiClient() {
         return Client.builder()
                 .apiKey(apiKey)
+                .build();
+    }
+
+    @Bean
+    public Client vertexAiClient() {
+        return Client.builder()
+                .location(location)
+                .vertexAI(true)
                 .build();
     }
 }

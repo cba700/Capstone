@@ -13,6 +13,7 @@ public record StoryPageResponseDto(
         Integer step,
         String themeName,
         String narration,
+        String imageUrl,
         boolean hasChoice,
         List<ChoiceResponseDto> choices,
         String storyTitle,
@@ -24,6 +25,7 @@ public record StoryPageResponseDto(
                 .step(page.getStep())
                 .themeName(page.getStory().getTheme().getName())
                 .narration(page.getNarration())
+                .imageUrl(page.getImageUrl())
                 .hasChoice(page.getHasChoice())
                 .choices(choices)
                 .storyTitle(StringUtils.hasText(page.getStory().getTitle()) ? page.getStory().getTitle() : null)

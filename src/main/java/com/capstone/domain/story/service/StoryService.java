@@ -64,6 +64,7 @@ public class StoryService {
 	private final TraitJobRepository traitJobRepository;
 	private final JobRepository jobRepository;
 	private final StoryGenerator storyGenerator;
+	private final GeminiImageService geminiImageService;
 
 	private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -353,13 +354,32 @@ public class StoryService {
 		int currentPageStep = firstNewStep;
 
 		for (String section : narrationSections) {
-			storyPageRepository.save(StoryPage.builder()
+			StoryPage page = storyPageRepository.save(StoryPage.builder()
 				.story(story)
-				.step(currentPageStep++)
+				.step(currentPageStep)
 				.pageType(PageType.PROGRESS)
 				.narration(section)
 				.hasChoice(false)
 				.build());
+
+			// 이미지 생성
+			try {
+				String imageUrl = geminiImageService.generateImageFromNarration(
+					section,
+					story.getChild(),
+					story.getId(),
+					currentPageStep
+				);
+				if (imageUrl != null) {
+					page.updateImageUrl(imageUrl);
+					storyPageRepository.save(page);
+				}
+			} catch (Exception e) {
+				log.error("[Story {}] Failed to generate image for step {}", story.getId(), currentPageStep, e);
+				// 이미지 생성 실패해도 스토리는 계속 진행
+			}
+
+			currentPageStep++;
 		}
 
 		List<AiResponseDto.ChoiceDto> aiChoices = aiResponse.getChoices();
@@ -373,6 +393,24 @@ public class StoryService {
 			.narration(problemNarration)
 			.hasChoice(hasChoices)
 			.build());
+
+		// 선택지 페이지도 이미지 생성
+		if (StringUtils.hasText(problemNarration)) {
+			try {
+				String imageUrl = geminiImageService.generateImageFromNarration(
+					problemNarration,
+					story.getChild(),
+					story.getId(),
+					currentPageStep
+				);
+				if (imageUrl != null) {
+					choicePage.updateImageUrl(imageUrl);
+					storyPageRepository.save(choicePage);
+				}
+			} catch (Exception e) {
+				log.error("[Story {}] Failed to generate image for choice page step {}", story.getId(), currentPageStep, e);
+			}
+		}
 
 		for (int i = 0; hasChoices && i < aiChoices.size(); i++) {
 			AiResponseDto.ChoiceDto choiceDto = aiChoices.get(i);
