@@ -2,8 +2,7 @@ package com.capstone.domain.story.service;
 
 import com.capstone.domain.child.entity.Child;
 import com.google.genai.Client;
-import com.google.genai.models.GenerateContentConfig;
-import com.google.genai.models.GenerateContentResponse;
+import com.google.genai.types.GenerateContentResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -93,18 +92,16 @@ public class GeminiImageService {
             // 1. 한국어 narration → 영어 이미지 프롬프트 변환
             String englishPrompt = translateToImagePrompt(narration, child);
 
-            // 2. 이미지 생성
-            GenerateContentConfig config = GenerateContentConfig.builder()
-                    .responseModalities("IMAGE")
-                    .candidateCount(1)
-                    .build();
-
             log.info("[Gemini Image] Generating image for story {} step {}", storyId, step);
+            log.info("[Gemini Image] Using prompt: {}", englishPrompt);
 
+            // 2. 이미지 생성 (Vertex AI Client 사용)
+            // Note: google-genai:1.0.0 버전에서는 이미지 생성이 제한적일 수 있습니다.
+            // Vertex AI API를 직접 호출하거나 최신 버전으로 업그레이드가 필요할 수 있습니다.
             GenerateContentResponse response = vertexAiClient.models.generateContent(
                     imageModelName,
                     englishPrompt,
-                    config
+                    null
             );
 
             // 3. 이미지 데이터 추출 및 저장
@@ -116,6 +113,7 @@ public class GeminiImageService {
 
         } catch (Exception e) {
             log.error("[Gemini Image] Failed to generate image for story {} step {}", storyId, step, e);
+            log.warn("[Gemini Image] 이미지 생성에 실패했습니다. google-genai 라이브러리 버전이나 Vertex AI 설정을 확인해주세요.");
             return null;  // 이미지 생성 실패해도 스토리는 계속 진행
         }
     }
@@ -124,17 +122,32 @@ public class GeminiImageService {
      * 응답에서 이미지 바이트 데이터 추출
      */
     private byte[] extractImageData(GenerateContentResponse response) {
-        if (response.candidates() != null && !response.candidates().isEmpty()) {
-            var candidate = response.candidates().get(0);
-            if (candidate.content() != null && candidate.content().parts() != null) {
-                for (var part : candidate.content().parts()) {
-                    if (part.inlineData() != null && part.inlineData().data() != null) {
-                        return part.inlineData().data();
+        // Google Genai SDK의 응답 구조에 따라 이미지 데이터 추출
+        try {
+            if (response.candidates() != null && !response.candidates().isEmpty()) {
+                var candidate = response.candidates().get(0);
+                if (candidate.content() != null && candidate.content().parts() != null) {
+                    for (var part : candidate.content().parts()) {
+                        // inlineData 방식으로 이미지 데이터가 포함될 수 있음
+                        if (part.inlineData() != null && part.inlineData().data() != null) {
+                            return part.inlineData().data();
+                        }
+
+                        // 또는 다른 형태로 이미지가 포함될 수 있음
+                        // 실제 응답 구조를 로그로 확인하여 디버깅
+                        log.debug("[Gemini Image] Part type: {}", part.getClass().getName());
                     }
                 }
             }
+
+            // 이미지 데이터를 찾지 못한 경우
+            log.error("[Gemini Image] Response structure: {}", response);
+            throw new RuntimeException("No image data found in response. Response may not contain image.");
+
+        } catch (Exception e) {
+            log.error("[Gemini Image] Error extracting image data", e);
+            throw new RuntimeException("Failed to extract image data from response", e);
         }
-        throw new RuntimeException("No image data in response");
     }
 
     /**
