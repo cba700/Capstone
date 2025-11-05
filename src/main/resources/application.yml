@@ -33,3 +33,9 @@ spring:
 gemini:
   api-key: "AIzaSyBWz-lBKXqfrgmMkUnpXTWefelCYrsTh_I"
   model-name: "gemini-2.5-flash"
+  image-model-name: "gemini-2.5-flash-image"
+  project-id: ""  # Google Cloud Project ID (필요시 입력)
+  location: "global"
+
+file:
+  upload-dir: "uploads/story-images"

@@ -34,6 +34,13 @@ public class StoryPage {
 	@Column(columnDefinition = "TEXT")
 	private String imagePrompt;
 
+	@Column(length = 500)
+	private String imageUrl;
+
 	@Column(nullable = false) //분기유무
 	private Boolean hasChoice;
+
+	public void updateImageUrl(String imageUrl) {
+		this.imageUrl = imageUrl;
+	}
 }
