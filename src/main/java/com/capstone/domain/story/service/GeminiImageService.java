@@ -2,13 +2,17 @@ package com.capstone.domain.story.service;
 
 import com.capstone.domain.child.entity.Child;
 import com.google.genai.Client;
-import com.google.genai.models.GenerateContentConfig;
-import com.google.genai.models.GenerateContentResponse;
+import com.google.genai.types.GenerateContentResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
 
+import javax.annotation.PostConstruct;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
@@ -16,6 +20,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Base64;
+import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -23,7 +30,9 @@ import java.nio.file.Paths;
 public class GeminiImageService {
 
     private final Client geminiClient;  // 텍스트용 (프롬프트 변환)
-    private final Client vertexAiClient;  // 이미지 생성용
+
+    @Value("${gemini.api-key}")
+    private String apiKey;
 
     @Value("${gemini.model-name}")
     private String textModelName;
@@ -33,6 +42,17 @@ public class GeminiImageService {
 
     @Value("${file.upload-dir}")
     private String uploadDir;
+
+    private WebClient webClient;
+
+    @PostConstruct
+    public void init() {
+        this.webClient = WebClient.builder()
+                .baseUrl("https://generativelanguage.googleapis.com/v1beta")
+                .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .build();
+        log.info("[Gemini Image Service] Initialized with image model: {}", imageModelName);
+    }
 
     /**
      * (Text-to-Prompt) 동화 텍스트(장면)와 아이 정보를 받아
@@ -81,7 +101,7 @@ public class GeminiImageService {
     }
 
     /**
-     * 이미지 생성 메인 메서드
+     * 이미지 생성 메인 메서드 (REST API 직접 호출)
      * @param narration 한국어 narration
      * @param child 아이 정보
      * @param storyId 스토리 ID
@@ -93,48 +113,103 @@ public class GeminiImageService {
             // 1. 한국어 narration → 영어 이미지 프롬프트 변환
             String englishPrompt = translateToImagePrompt(narration, child);
 
-            // 2. 이미지 생성
-            GenerateContentConfig config = GenerateContentConfig.builder()
-                    .responseModalities("IMAGE")
-                    .candidateCount(1)
-                    .build();
+            log.info("[Gemini Image API] Generating image for story {} step {}", storyId, step);
+            log.info("[Gemini Image API] Using prompt: {}", englishPrompt);
 
-            log.info("[Gemini Image] Generating image for story {} step {}", storyId, step);
-
-            GenerateContentResponse response = vertexAiClient.models.generateContent(
-                    imageModelName,
-                    englishPrompt,
-                    config
+            // 2. REST API로 이미지 생성 요청
+            Map<String, Object> requestBody = Map.of(
+                "contents", List.of(
+                    Map.of("parts", List.of(
+                        Map.of("text", englishPrompt)
+                    ))
+                ),
+                "generationConfig", Map.of(
+                    "temperature", 0.4,
+                    "topK", 32,
+                    "topP", 1,
+                    "maxOutputTokens", 4096
+                )
             );
 
-            // 3. 이미지 데이터 추출 및 저장
-            byte[] imageData = extractImageData(response);
+            // 3. API 호출
+            Map<String, Object> response = webClient.post()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/models/" + imageModelName + ":generateContent")
+                            .queryParam("key", apiKey)
+                            .build())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(requestBody)
+                    .retrieve()
+                    .bodyToMono(Map.class)
+                    .block();
+
+            log.debug("[Gemini Image API] Response: {}", response);
+
+            // 4. 응답에서 이미지 데이터 추출
+            byte[] imageData = extractImageFromResponse(response);
+
+            // 5. 이미지 저장
             String filePath = saveImage(imageData, storyId, step);
 
-            log.info("[Gemini Image] Image saved: {}", filePath);
+            log.info("[Gemini Image API] Image saved: {}", filePath);
             return filePath;
 
         } catch (Exception e) {
-            log.error("[Gemini Image] Failed to generate image for story {} step {}", storyId, step, e);
+            log.error("[Gemini Image API] Failed to generate image for story {} step {}", storyId, step, e);
+            log.warn("[Gemini Image API] 이미지 생성에 실패했습니다. API Key와 모델명을 확인해주세요.");
             return null;  // 이미지 생성 실패해도 스토리는 계속 진행
         }
     }
 
     /**
-     * 응답에서 이미지 바이트 데이터 추출
+     * REST API 응답에서 이미지 데이터 추출
      */
-    private byte[] extractImageData(GenerateContentResponse response) {
-        if (response.candidates() != null && !response.candidates().isEmpty()) {
-            var candidate = response.candidates().get(0);
-            if (candidate.content() != null && candidate.content().parts() != null) {
-                for (var part : candidate.content().parts()) {
-                    if (part.inlineData() != null && part.inlineData().data() != null) {
-                        return part.inlineData().data();
+    private byte[] extractImageFromResponse(Map<String, Object> response) {
+        try {
+            // 응답 구조: { "candidates": [{ "content": { "parts": [{ "inlineData": { "mimeType": "image/png", "data": "base64..." } }] } }] }
+            List<Map<String, Object>> candidates = (List<Map<String, Object>>) response.get("candidates");
+            if (candidates == null || candidates.isEmpty()) {
+                log.error("[Gemini Image API] No candidates in response");
+                throw new RuntimeException("No candidates in response");
+            }
+
+            Map<String, Object> candidate = candidates.get(0);
+            Map<String, Object> content = (Map<String, Object>) candidate.get("content");
+            if (content == null) {
+                log.error("[Gemini Image API] No content in candidate");
+                throw new RuntimeException("No content in candidate");
+            }
+
+            List<Map<String, Object>> parts = (List<Map<String, Object>>) content.get("parts");
+            if (parts == null || parts.isEmpty()) {
+                log.error("[Gemini Image API] No parts in content");
+                throw new RuntimeException("No parts in content");
+            }
+
+            // 첫 번째 part에서 이미지 데이터 찾기
+            for (Map<String, Object> part : parts) {
+                Map<String, Object> inlineData = (Map<String, Object>) part.get("inlineData");
+                if (inlineData != null) {
+                    String base64Data = (String) inlineData.get("data");
+                    if (base64Data != null) {
+                        log.info("[Gemini Image API] Found base64 image data (length: {})", base64Data.length());
+                        return Base64.getDecoder().decode(base64Data);
                     }
                 }
+
+                // text가 있는 경우 (이미지가 아닌 텍스트 응답)
+                String text = (String) part.get("text");
+                if (text != null) {
+                    log.warn("[Gemini Image API] API returned text instead of image: {}", text.substring(0, Math.min(100, text.length())));
+                }
             }
+
+            throw new RuntimeException("No image data found in response parts");
+
+        } catch (ClassCastException e) {
+            log.error("[Gemini Image API] Unexpected response structure", e);
+            throw new RuntimeException("Unexpected response structure", e);
         }
-        throw new RuntimeException("No image data in response");
     }
 
     /**
@@ -152,6 +227,11 @@ public class GeminiImageService {
 
         // 바이트 배열을 이미지로 변환 후 저장
         BufferedImage image = ImageIO.read(new ByteArrayInputStream(imageData));
+        if (image == null) {
+            log.error("[Gemini Image API] Failed to decode image data");
+            throw new IOException("Failed to decode image data");
+        }
+
         ImageIO.write(image, "png", filePath.toFile());
 
         // 웹 접근 가능한 상대 경로 반환
