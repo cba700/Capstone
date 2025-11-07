@@ -11,6 +11,7 @@ import java.util.List;
 public class AiResponseDto {
     private List<String> narrationSections; // 이야기 진행 서술 문단 (최대 3문장 x N)
     private String problem;   // 새로운 문제 상황 또는 미션
+    private String imagePrompt; // 이미지 생성용 프롬프트
     private List<ChoiceDto> choices; // 선택지 리스트
 
     public List<String> getNarrationSectionsOrDefault() {

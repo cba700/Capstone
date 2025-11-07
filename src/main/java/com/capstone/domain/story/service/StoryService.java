@@ -64,6 +64,7 @@ public class StoryService {
 	private final TraitJobRepository traitJobRepository;
 	private final JobRepository jobRepository;
 	private final StoryGenerator storyGenerator;
+	private final StoryImageService storyImageService;
 
 	private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -353,26 +354,83 @@ public class StoryService {
 		int currentPageStep = firstNewStep;
 
 		for (String section : narrationSections) {
-			storyPageRepository.save(StoryPage.builder()
+			StoryPage page = StoryPage.builder()
 				.story(story)
 				.step(currentPageStep++)
 				.pageType(PageType.PROGRESS)
 				.narration(section)
+				.imagePrompt(aiResponse.getImagePrompt())
 				.hasChoice(false)
-				.build());
+				.build();
+			
+			// 페이지 저장
+			StoryPage savedPage = storyPageRepository.save(page);
+			
+			// 이미지 생성 및 URL 저장 (비동기적으로 처리 가능)
+			try {
+				String imageUrl = storyImageService.generateAndSaveImage(
+					aiResponse.getImagePrompt(), 
+					story.getId(), 
+					savedPage.getStep()
+				);
+				if (StringUtils.hasText(imageUrl)) {
+					// 이미지 URL 업데이트를 위해 새로운 빌더 패턴이 필요하면 setter 메서드 추가 필요
+					// 현재는 직접 업데이트
+					storyPageRepository.save(StoryPage.builder()
+						.id(savedPage.getId())
+						.story(savedPage.getStory())
+						.step(savedPage.getStep())
+						.pageType(savedPage.getPageType())
+						.narration(savedPage.getNarration())
+						.imagePrompt(savedPage.getImagePrompt())
+						.imageUrl(imageUrl)
+						.hasChoice(savedPage.getHasChoice())
+						.build());
+				}
+			} catch (Exception e) {
+				log.warn("Failed to generate image for story {} step {}: {}", 
+					story.getId(), savedPage.getStep(), e.getMessage());
+			}
 		}
 
 		List<AiResponseDto.ChoiceDto> aiChoices = aiResponse.getChoices();
 		boolean hasChoices = aiChoices != null && !aiChoices.isEmpty();
 		String problemNarration = StringUtils.hasText(aiResponse.getProblem()) ? aiResponse.getProblem().trim() : "";
 
-		StoryPage choicePage = storyPageRepository.save(StoryPage.builder()
+		StoryPage choicePage = StoryPage.builder()
 			.story(story)
 			.step(currentPageStep)
 			.pageType(hasChoices ? PageType.CHOICE : PageType.PROGRESS)
 			.narration(problemNarration)
+			.imagePrompt(aiResponse.getImagePrompt())
 			.hasChoice(hasChoices)
-			.build());
+			.build();
+			
+		StoryPage savedChoicePage = storyPageRepository.save(choicePage);
+		
+		// 선택지 페이지에도 이미지 생성
+		try {
+			String imageUrl = storyImageService.generateAndSaveImage(
+				aiResponse.getImagePrompt(), 
+				story.getId(), 
+				savedChoicePage.getStep()
+			);
+			if (StringUtils.hasText(imageUrl)) {
+				savedChoicePage = storyPageRepository.save(StoryPage.builder()
+					.id(savedChoicePage.getId())
+					.story(savedChoicePage.getStory())
+					.step(savedChoicePage.getStep())
+					.pageType(savedChoicePage.getPageType())
+					.narration(savedChoicePage.getNarration())
+					.imagePrompt(savedChoicePage.getImagePrompt())
+					.imageUrl(imageUrl)
+					.hasChoice(savedChoicePage.getHasChoice())
+					.build());
+			}
+		} catch (Exception e) {
+			log.warn("Failed to generate image for choice page story {} step {}: {}", 
+				story.getId(), savedChoicePage.getStep(), e.getMessage());
+		}
 
 		for (int i = 0; hasChoices && i < aiChoices.size(); i++) {
 			AiResponseDto.ChoiceDto choiceDto = aiChoices.get(i);
@@ -382,7 +440,7 @@ public class StoryService {
 				String resolvedJobName = resolveJobName(choiceDto.getJobName(), fallbackJobNames, i);
 				String resolvedThemeWorld = resolveThemeWorld(choiceDto.getThemeWorld(), resolvedJobName);
 				storyChoiceRepository.save(StoryChoice.builder()
-					.page(choicePage)
+					.page(savedChoicePage)
 					.choiceKey(choiceKey)
 					.label(choiceDto.getChoiceText())
 					.traitsJson(traitsJson)

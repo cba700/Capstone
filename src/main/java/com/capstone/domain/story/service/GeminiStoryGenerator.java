@@ -44,6 +44,7 @@ public class GeminiStoryGenerator implements StoryGenerator {
             "{\n" +
             "  \"narrationSections\": [\"짧은 문단 1\", \"짧은 문단 2\"],\n" +
             "  \"problem\": \"마지막에 제시할 문제 상황이나 다음 선택 안내\",\n" +
+            "  \"imagePrompt\": \"현재 장면을 묘사하는 이미지 생성용 영어 프롬프트 (어린이용 일러스트 스타일)\",\n" +
             "  \"choices\": [\n" +
             "    {\"key\": \"A\", \"text\": \"선택지 문장\", \"traits\": [\"#용기\"], \"jobName\": \"관련된 직업명(필요 시)\", \"themeWorld\": \"연결된 테마 월드 이름(필요 시)\"},\n" +
             "    {\"key\": \"B\", \"text\": \"선택지 문장\", \"traits\": [\"#호기심\"], \"jobName\": null, \"themeWorld\": null},\n" +
@@ -130,11 +131,12 @@ public class GeminiStoryGenerator implements StoryGenerator {
         prompt.append("2. 이어서 '문제 상황' 표기 아래에 핵심 상황을 다시 한 번 간단히 요약합니다.\n");
         prompt.append("3. '선택지' 표기 아래에 A, B, C 선택지를 제공하고 각각 1~2개의 성향 태그(#용기 등)를 괄호 안에 표기합니다.\n");
         prompt.append("4. 태그는 서버가 전달한 후보에서 골라 사용하고, 그대로 JSON에도 반영합니다.\n");
-        prompt.append("5. 마지막 줄에 위 스키마와 동일한 JSON 블록을 제공합니다. JSON 안의 텍스트도 모두 한국어로 작성합니다.\n");
+        prompt.append("5. 마지막 줄에 위 스키마와 동일한 JSON 블록을 제공합니다. JSON 안의 텍스트는 한국어로, imagePrompt만 영어로 작성합니다.\n");
         prompt.append(JSON_SCHEMA_GUIDE);
         prompt.append("\nJSON 키 이름과 구조를 반드시 그대로 지키고, traits 배열에는 '#'이 포함된 태그만 넣으세요.\n");
         prompt.append("choice.text 값에는 태그 표현을 포함하지 말고, 선택 문장만 넣으세요.\n");
         prompt.append("themeWorld 값은 아직 직업 추천 단계가 아니므로 null로 남겨둡니다.\n");
+        prompt.append("imagePrompt에는 현재 장면을 표현하는 영어 프롬프트를 작성하세요. 예: 'cute children's book illustration, fantasy adventure scene, colorful and friendly style, safe for kids'\n");
         return prompt.toString();
     }
 
@@ -166,6 +168,7 @@ public class GeminiStoryGenerator implements StoryGenerator {
         prompt.append("\nJSON 블록은 이야기 본문 다음에 한 번만 제공하고, traits에는 '#'이 포함된 태그 명칭만 넣으세요.\n");
         prompt.append("choice.text는 태그 없이 선택 문장만 포함해야 합니다.\n");
         prompt.append("themeWorld 값은 직업 추천 이전 단계이므로 null로 설정합니다.\n");
+        prompt.append("imagePrompt에는 현재 이야기 장면을 묘사하는 영어 프롬프트를 작성하세요. 어린이용 일러스트 스타일로 설명하세요.\n");
         return prompt.toString();
     }
 
@@ -197,6 +200,7 @@ public class GeminiStoryGenerator implements StoryGenerator {
         prompt.append(JSON_SCHEMA_GUIDE);
         prompt.append("\nJSON 블록에서 choice.text에는 테마 월드와 직업을 모두 언급하고, traits에는 직업에 어울리는 긍정 태그를 제공합니다. themeWorld에는 선택지에서 안내한 테마 월드 이름만 간결하게 적으세요.\n");
         prompt.append("choice.text에는 태그 표현을 포함하지 마세요.\n");
+        prompt.append("imagePrompt에는 모험 완료를 축하하는 장면을 묘사하는 영어 프롬프트를 작성하세요.\n");
         return prompt.toString();
     }
 
@@ -224,6 +228,7 @@ public class GeminiStoryGenerator implements StoryGenerator {
         prompt.append("\ntraits에는 선택한 직업 수행에 도움이 되는 긍정 태그를 넣으세요.\n");
         prompt.append("choice.text에는 태그 표현을 넣지 마세요.\n");
         prompt.append("themeWorld 값에는 입력으로 받은 테마 월드 이름을 그대로 적어주세요.\n");
+        prompt.append("imagePrompt에는 직업 체험 시작 장면을 묘사하는 영어 프롬프트를 작성하세요.\n");
         return prompt.toString();
     }
 
@@ -281,6 +286,7 @@ public class GeminiStoryGenerator implements StoryGenerator {
                     root.path("narrationSections"), new TypeReference<List<String>>() {
                     });
             String problem = asTrimmedText(root.path("problem"));
+            String imagePrompt = asTrimmedText(root.path("imagePrompt"));
 
             List<Map<String, Object>> rawChoices = OBJECT_MAPPER.convertValue(
                     root.path("choices"), new TypeReference<List<Map<String, Object>>>() {
@@ -299,6 +305,7 @@ public class GeminiStoryGenerator implements StoryGenerator {
             return AiResponseDto.builder()
                     .narrationSections(narrationSections)
                     .problem(problem)
+                    .imagePrompt(imagePrompt)
                     .choices(choices)
                     .build();
         } catch (JsonProcessingException e) {

@@ -31,5 +31,14 @@ spring:
     active: local
 
 gemini:
-  api-key: "AIzaSyBWz-lBKXqfrgmMkUnpXTWefelCYrsTh_I"
+  api-key: "AIzaSyAlQDbzaoTR8P0auWsdIVFGllU4p5C4RUI"
   model-name: "gemini-2.5-flash"
+  image-model-name: "gemini-2.5-flash-image"
+
+openai:
+  api-key: ""  # OpenAI API 키를 여기에 설정
+
+story:
+  image:
+    save-path: "./story-images"
+    base-url: "/story-images"

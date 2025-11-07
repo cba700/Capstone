@@ -46,6 +46,15 @@
     </div>
 
     <div class="bg-white rounded-3xl shadow-2xl p-8">
+        <!-- Story Image -->
+        <div th:if="${page.imageUrl != null}" class="text-center mb-6">
+            <div class="bg-gradient-to-br from-purple-100 to-pink-100 rounded-2xl p-4 inline-block">
+                <img th:src="${page.imageUrl}" alt="스토리 이미지" 
+                     class="max-w-full h-auto rounded-xl shadow-lg max-h-80 mx-auto"
+                     style="object-fit: cover;">
+            </div>
+        </div>
+
         <!-- Narration -->
         <div class="bg-purple-50 rounded-2xl p-6 mb-6">
             <p class="text-gray-800 text-lg leading-relaxed whitespace-pre-line" th:text="${page.narration}">나레이션이 여기에 표시됩니다.</p>
