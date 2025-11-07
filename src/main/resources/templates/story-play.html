@@ -2,8 +2,110 @@
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>이야기 진행하기</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 모바일 가로모드 강제 설정 -->
+    <style>
+        /* 모바일에서 가로모드 유도 */
+        @media screen and (max-width: 768px) and (orientation: portrait) {
+            body::before {
+                content: "📱 더 나은 경험을 위해 가로모드로 회전해주세요";
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.9);
+                color: white;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10000;
+                font-size: 18px;
+                text-align: center;
+                padding: 20px;
+            }
+            
+            body > *:not(::before) {
+                display: none;
+            }
+        }
+        
+        /* 모바일 가로모드에서는 동화책 레이아웃 사용 */
+        @media screen and (max-width: 768px) and (orientation: landscape) {
+            body {
+                height: 100vh;
+                overflow: hidden;
+                padding: 0 !important;
+            }
+            
+            .mobile-container {
+                height: 100vh;
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+            }
+            
+            .mobile-header {
+                flex-shrink: 0;
+                padding: 8px 16px;
+            }
+            
+            .mobile-content {
+                flex: 1;
+                min-height: 0;
+                overflow: hidden;
+            }
+            
+            .mobile-landscape {
+                display: flex !important;
+                flex-direction: row !important;
+                height: 100%;
+            }
+            
+            .mobile-landscape .mobile-image {
+                width: 50% !important;
+                padding: 8px !important;
+            }
+            
+            .mobile-landscape .mobile-text {
+                width: 50% !important;
+                padding: 8px !important;
+                overflow-y: auto;
+                max-height: 100%;
+            }
+            
+            .mobile-landscape .mobile-image img {
+                max-height: 100% !important;
+                height: 100% !important;
+                object-fit: cover;
+            }
+            
+            /* 모바일 가로모드에서 폰트 크기 조정 */
+            .mobile-text h1 {
+                font-size: 1rem !important;
+                margin-bottom: 4px !important;
+            }
+            
+            .mobile-text p {
+                font-size: 0.85rem !important;
+                line-height: 1.3 !important;
+            }
+            
+            .mobile-text .bg-purple-50 {
+                padding: 12px !important;
+                margin-bottom: 8px !important;
+            }
+            
+            .mobile-text button {
+                padding: 8px 12px !important;
+                font-size: 0.8rem !important;
+                margin-bottom: 4px !important;
+            }
+        }
+    </style>
     <style>
         .loading-overlay {
             display: none;
@@ -28,7 +130,7 @@
         }
     </style>
 </head>
-<body class="min-h-screen bg-gradient-to-br from-purple-100 via-pink-50 to-blue-100 flex items-center justify-center p-4">
+<body class="min-h-screen bg-gradient-to-br from-purple-100 via-pink-50 to-blue-100 p-4">
 
 <!-- 로딩 오버레이 -->
 <div id="loadingOverlay" class="loading-overlay">
@@ -39,82 +141,106 @@
     </div>
 </div>
 
-<div class="w-full max-w-2xl">
-    <div class="text-center mb-6">
+<!-- 모바일 전용 컨테이너 -->
+<div class="mobile-container">
+    <!-- 제목 -->
+    <div class="text-center mb-6 mobile-header">
         <h1 class="text-4xl font-black text-gray-800 mb-2" th:text="${page.themeName}">테마 이름</h1>
         <p class="text-gray-600">선택에 따라 모험이 달라져요!</p>
     </div>
 
-    <div class="bg-white rounded-3xl shadow-2xl p-8">
-        <!-- Story Image -->
-        <div th:if="${page.imageUrl != null}" class="text-center mb-6">
-            <div class="bg-gradient-to-br from-purple-100 to-pink-100 rounded-2xl p-4 inline-block">
-                <img th:src="${page.imageUrl}" alt="스토리 이미지" 
-                     class="max-w-full h-auto rounded-xl shadow-lg max-h-80 mx-auto"
-                     style="object-fit: cover;">
-            </div>
-        </div>
-
-        <!-- Narration -->
-        <div class="bg-purple-50 rounded-2xl p-6 mb-6">
-            <p class="text-gray-800 text-lg leading-relaxed whitespace-pre-line" th:text="${page.narration}">나레이션이 여기에 표시됩니다.</p>
-        </div>
-
-        <div th:if="${page.storyTitle != null}" class="bg-white border border-purple-200 rounded-2xl p-4 mb-6">
-            <p class="text-sm uppercase text-purple-500 font-semibold">이야기 제목</p>
-            <p class="text-xl font-bold text-gray-800" th:text="${page.storyTitle}">우리의 멋진 이야기</p>
-        </div>
-
-        <!-- Choices -->
-        <div th:if="${page.hasChoice}" class="grid md:grid-cols-2 gap-4">
-            <div th:each="choice : ${page.choices}">
-                <form th:if="${#strings.isEmpty(choice.jobName)}"
-                      th:action="@{/story/{storyId}/choice(storyId=${page.storyId})}"
-                      method="post"
-                      onsubmit="showLoading()">
-                    <input type="hidden" name="choiceId" th:value="${choice.choiceId}"/>
-                    <button type="submit" class="w-full h-full text-left p-6 bg-white border-2 border-gray-200 rounded-2xl hover:border-purple-500 hover:bg-purple-50 transition-all duration-300 transform hover:scale-105">
-                        <p class="font-semibold text-gray-800" th:text="${choice.text}">선택지 텍스트</p>
-                    </button>
-                </form>
-                <form th:unless="${#strings.isEmpty(choice.jobName)}"
-                      th:action="@{/story/start-job}"
-                      method="post"
-                      onsubmit="showLoading()">
-                    <input type="hidden" name="previousStoryId" th:value="${page.storyId}" />
-                    <input type="hidden" name="jobName" th:value="${choice.jobName}" />
-                    <input type="hidden" name="themeWorld" th:value="${choice.themeWorld}" />
-                    <button type="submit" class="w-full h-full text-left p-6 bg-white border-2 border-purple-300 rounded-2xl hover:border-purple-500 hover:bg-purple-50 transition-all duration-300 transform hover:scale-105">
-                        <p class="font-semibold text-gray-800" th:text="${choice.text}">선택지 텍스트</p>
-                    </button>
-                </form>
-            </div>
-        </div>
-        <!-- Completion / Progress Buttons -->
-        <div th:unless="${page.hasChoice}" class="text-center space-y-6">
-            <div th:if="${page.completion}" class="space-y-4">
-                <div class="bg-orange-50 border border-orange-200 rounded-2xl p-6">
-                    <p class="text-xl font-semibold text-orange-600">토키: 모험이 멋지게 끝났단다!</p>
-                    <p class="text-gray-600 mt-2">메인 화면에서 다음 모험을 함께 골라보자!</p>
+    <!-- 동화책 스타일 레이아웃 -->
+    <div class="max-w-7xl mx-auto mobile-content">
+        <div class="bg-white rounded-3xl shadow-2xl overflow-hidden h-full">
+            <div class="flex flex-col lg:flex-row mobile-landscape h-full">
+            
+            <!-- 왼쪽: 이미지 영역 (동화책 절반) -->
+            <div class="lg:w-1/2 mobile-image bg-gradient-to-br from-purple-50 to-pink-50 flex items-center justify-center p-4 md:p-8">
+                <div th:if="${page.imageUrl != null}" class="w-full h-full flex items-center justify-center">
+                    <img th:src="${page.imageUrl}" alt="스토리 이미지" 
+                         class="w-full h-full object-cover rounded-2xl shadow-lg min-h-60 md:min-h-80 lg:max-h-full"
+                         style="max-height: 400px;">
                 </div>
-                <a href="/main"
-                   class="inline-block px-8 py-4 bg-purple-600 text-white font-bold rounded-full hover:bg-purple-700 transition-transform transform hover:scale-105">
-                    메인으로 돌아가기
-                </a>
+                <div th:unless="${page.imageUrl != null}" class="w-full h-60 md:h-96 bg-gradient-to-br from-purple-200 to-pink-200 rounded-2xl flex items-center justify-center">
+                    <p class="text-purple-600 text-base md:text-lg font-semibold">이미지 로딩 중...</p>
+                </div>
             </div>
-            <div th:if="${!page.completion}">
-                <a th:href="@{/story/{storyId}/page/{nextStep}(storyId=${page.storyId}, nextStep=${page.step + 1})}"
-                   class="inline-block px-8 py-4 bg-purple-600 text-white font-bold rounded-full hover:bg-purple-700 transition-transform transform hover:scale-105">
-                    다음으로 &rarr;
-                </a>
-            </div>
-        </div>
-    </div>
+            
+            <!-- 오른쪽: 텍스트 영역 (동화책 절반) -->
+            <div class="lg:w-1/2 mobile-text p-4 md:p-8 flex flex-col justify-between">
+                
+                <!-- 나레이션 -->
+                <div class="flex-1 flex flex-col justify-center">
+                    <div class="bg-purple-50 rounded-2xl p-6 mb-6">
+                        <p class="text-gray-800 text-lg leading-relaxed whitespace-pre-line" th:text="${page.narration}">나레이션이 여기에 표시됩니다.</p>
+                    </div>
 
+                    <!-- 스토리 제목 -->
+                    <div th:if="${page.storyTitle != null}" class="bg-white border border-purple-200 rounded-2xl p-4 mb-6">
+                        <p class="text-sm uppercase text-purple-500 font-semibold">이야기 제목</p>
+                        <p class="text-xl font-bold text-gray-800" th:text="${page.storyTitle}">우리의 멋진 이야기</p>
+                    </div>
+                </div>
+
+                <!-- 선택지 영역 -->
+                <div class="mt-auto">
+                    <!-- Choices -->
+                    <div th:if="${page.hasChoice}" class="grid gap-3">
+                        <div th:each="choice : ${page.choices}">
+                            <form th:if="${#strings.isEmpty(choice.jobName)}"
+                                  th:action="@{/story/{storyId}/choice(storyId=${page.storyId})}"
+                                  method="post"
+                                  onsubmit="showLoading()">
+                                <input type="hidden" name="choiceId" th:value="${choice.choiceId}"/>
+                                <button type="submit" class="w-full text-left p-4 bg-white border-2 border-gray-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-all duration-300 transform hover:scale-105">
+                                    <p class="font-semibold text-gray-800" th:text="${choice.text}">선택지 텍스트</p>
+                                </button>
+                            </form>
+                            <form th:unless="${#strings.isEmpty(choice.jobName)}"
+                                  th:action="@{/story/start-job}"
+                                  method="post"
+                                  onsubmit="showLoading()">
+                                <input type="hidden" name="previousStoryId" th:value="${page.storyId}" />
+                                <input type="hidden" name="jobName" th:value="${choice.jobName}" />
+                                <input type="hidden" name="themeWorld" th:value="${choice.themeWorld}" />
+                                <button type="submit" class="w-full text-left p-4 bg-white border-2 border-purple-300 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-all duration-300 transform hover:scale-105">
+                                    <p class="font-semibold text-gray-800" th:text="${choice.text}">선택지 텍스트</p>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <!-- Completion / Progress Buttons -->
+                    <div th:unless="${page.hasChoice}" class="text-center space-y-4">
+                        <div th:if="${page.completion}" class="space-y-4">
+                            <div class="bg-orange-50 border border-orange-200 rounded-2xl p-4">
+                                <p class="text-lg font-semibold text-orange-600">토키: 모험이 멋지게 끝났단다!</p>
+                                <p class="text-gray-600 mt-2">메인 화면에서 다음 모험을 함께 골라보자!</p>
+                            </div>
+                            <a href="/main"
+                               class="inline-block px-6 py-3 bg-purple-600 text-white font-bold rounded-full hover:bg-purple-700 transition-transform transform hover:scale-105">
+                                메인으로 돌아가기
+                            </a>
+                        </div>
+                        <div th:if="${!page.completion}">
+                            <a th:href="@{/story/{storyId}/page/{nextStep}(storyId=${page.storyId}, nextStep=${page.step + 1})}"
+                               class="inline-block px-6 py-3 bg-purple-600 text-white font-bold rounded-full hover:bg-purple-700 transition-transform transform hover:scale-105">
+                                다음으로 &rarr;
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+            </div> <!-- 오른쪽 텍스트 영역 끝 -->
+        </div> <!-- flex 컨테이너 끝 -->
+    </div> <!-- 메인 카드 끝 -->
+</div> <!-- mobile-content 끝 -->
+
+    <!-- 하단 네비게이션 -->
     <div class="text-center mt-6">
         <a href="/main" class="text-sm text-gray-600 hover:text-gray-800">메인으로 돌아가기</a>
     </div>
-</div>
+</div> <!-- mobile-container 끝 -->
 
 <script>
     let isSubmitting = false;
