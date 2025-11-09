@@ -35,8 +35,6 @@ public class StoryImageService {
     @Value("${gemini.api-key}")
     private String geminiApiKey;
 
-    @Value("${openai.api-key:}")
-    private String openaiApiKey;
 
     @Value("${gemini.image-model-name:gemini-2.5-flash-image}")
     private String imageModelName;
@@ -58,20 +56,10 @@ public class StoryImageService {
             String enhancedPrompt = buildEnhancedPrompt(imagePrompt);
             log.info("Generating image for story {} step {} with prompt: {}", storyId, step, enhancedPrompt);
 
-            // 여러 이미지 생성 옵션 시도
-            String imageData = null;
+            // Gemini로 이미지 생성 시도
+            String imageData = generateImageWithGemini(enhancedPrompt);
             
-            // 1. OpenAI DALL-E 먼저 시도 (실제 이미지 생성 가능)
-            if (StringUtils.hasText(openaiApiKey)) {
-                imageData = generateImageWithOpenAI(enhancedPrompt);
-            }
-            
-            // 2. OpenAI 실패 시 Gemini 시도
-            if (imageData == null) {
-                imageData = generateImageWithGemini(enhancedPrompt);
-            }
-            
-            // 3. 모든 API 실패 시 플레이스홀더 사용
+            // Gemini 실패 시 플레이스홀더 사용
             if (imageData == null) {
                 imageData = generatePlaceholderImage();
             }
@@ -104,69 +92,6 @@ public class StoryImageService {
         );
     }
 
-    private String generateImageWithOpenAI(String prompt) {
-        try {
-            log.info("Requesting image generation from OpenAI DALL-E with prompt: {}", prompt);
-            
-            String apiUrl = "https://api.openai.com/v1/images/generations";
-            
-            // 요청 바디 구성
-            Map<String, Object> requestBody = new HashMap<>();
-            requestBody.put("model", "dall-e-3");
-            requestBody.put("prompt", prompt);
-            requestBody.put("size", "1024x1024");
-            requestBody.put("quality", "standard");
-            requestBody.put("response_format", "b64_json");
-            requestBody.put("n", 1);
-            
-            // HTTP 헤더 설정
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("Content-Type", "application/json");
-            headers.set("Authorization", "Bearer " + openaiApiKey);
-            
-            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
-            
-            // API 호출
-            ResponseEntity<Map> response = restTemplate.exchange(
-                apiUrl, HttpMethod.POST, entity, Map.class);
-            
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                return extractImageFromOpenAIResponse(response.getBody());
-            } else {
-                log.warn("OpenAI API returned non-success status: {}", response.getStatusCode());
-                return null;
-            }
-            
-        } catch (HttpClientErrorException e) {
-            log.error("OpenAI API client error: {} - {}", e.getStatusCode(), e.getResponseBodyAsString());
-            return null;
-        } catch (Exception e) {
-            log.error("Failed to generate image with OpenAI: {}", e.getMessage(), e);
-            return null;
-        }
-    }
-    
-    private String extractImageFromOpenAIResponse(Map<String, Object> responseBody) {
-        try {
-            Object[] dataArray = (Object[]) responseBody.get("data");
-            if (dataArray != null && dataArray.length > 0) {
-                Map<String, Object> imageData = (Map<String, Object>) dataArray[0];
-                String base64Image = (String) imageData.get("b64_json");
-                
-                if (StringUtils.hasText(base64Image)) {
-                    log.info("Successfully received image from OpenAI");
-                    return base64Image;
-                }
-            }
-            
-            log.warn("No image data found in OpenAI response");
-            return null;
-            
-        } catch (Exception e) {
-            log.error("Failed to extract image from OpenAI response: {}", e.getMessage(), e);
-            return null;
-        }
-    }
 
     private String generateImageWithGemini(String prompt) {
         try {

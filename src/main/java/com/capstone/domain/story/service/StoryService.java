@@ -603,6 +603,13 @@ public class StoryService {
 		return StoryPageResponseDto.from(page, choices);
 	}
 
+	@Transactional(readOnly = true)
+	public boolean hasNextPage(Long storyId, Integer currentStep) {
+		Story story = storyRepository.findById(storyId)
+			.orElseThrow(() -> new IllegalArgumentException("Invalid story Id:" + storyId));
+		return storyPageRepository.findByStoryAndStep(story, currentStep + 1).isPresent();
+	}
+
 	private void applyTitleAndSummary(Story story) {
 		if (story == null) {
 			return;

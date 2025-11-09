@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
@@ -41,6 +42,25 @@ public class StoryLibraryController {
             StoryBookDetailDto book = storyService.getStoryBook(bookId, selectedChildId);
             model.addAttribute("book", book);
             return "story-view";
+        } catch (IllegalArgumentException e) {
+            return "redirect:/bookshelf";
+        }
+    }
+    
+    @GetMapping("/story/read/{storyId}/page/{step}")
+    public String readStoryPage(@PathVariable Long storyId, @PathVariable Integer step, 
+                               HttpSession session, Model model) {
+        Long selectedChildId = (Long) session.getAttribute("selectedChildId");
+        if (selectedChildId == null) {
+            return "redirect:/main";
+        }
+        try {
+            var pageDto = storyService.getPage(storyId, step);
+            boolean hasNext = storyService.hasNextPage(storyId, step);
+            
+            model.addAttribute("page", pageDto);
+            model.addAttribute("hasNext", hasNext);
+            return "story-read";
         } catch (IllegalArgumentException e) {
             return "redirect:/bookshelf";
         }
