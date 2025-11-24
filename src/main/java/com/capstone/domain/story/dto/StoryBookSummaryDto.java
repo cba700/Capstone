@@ -9,6 +9,8 @@ public record StoryBookSummaryDto(
         Long storyId,
         String title,
         String summary,
+        String imageUrl,
+        String jobName,
         LocalDateTime completedAt
 ) {
 }

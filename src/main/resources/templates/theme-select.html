@@ -2,74 +2,60 @@
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>테마 선택 - 꿈꾸는 직업 이야기</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Jua&family=Poor+Story&display=swap" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Gamja+Flower&display=swap');
+        body { font-family: 'Poor Story', cursive; }
+        h1, h2, h3, button, .font-title { font-family: 'Jua', sans-serif; }
 
-        body {
-            font-family: 'Gamja+Flower', cursive;
+        /* 배경 애니메이션 */
+        .gradient-bg {
+            background: linear-gradient(135deg, #E0C3FC 0%, #8EC5FC 100%);
+            background-size: 400% 400%;
+            animation: gradient 15s ease infinite;
+        }
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
         }
 
-        .theme-card {
-            position: relative;
+        /* 구름 카드 스타일 */
+        .cloud-card {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(12px);
+            border: 4px solid #fff;
+            border-radius: 2.5rem;
+            box-shadow: 0 10px 30px rgba(167, 139, 250, 0.15);
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
             overflow: hidden;
-            transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            position: relative;
         }
 
-        .theme-card:hover {
-            transform: translateY(-15px) rotate(-2deg);
+        .cloud-card:hover {
+            transform: translateY(-12px) scale(1.02);
+            box-shadow: 0 20px 40px rgba(167, 139, 250, 0.25);
+            border-color: #F3E8FF;
         }
 
-        .theme-card:nth-child(even):hover {
-            transform: translateY(-15px) rotate(2deg);
+        /* 이미지 컨테이너 */
+        .theme-image-container {
+            overflow: hidden;
+            border-radius: 2rem;
+            position: relative;
         }
 
         .theme-image {
-            width: 100%;
-            height: 250px;
-            object-fit: cover;
-            transition: transform 0.5s ease;
+            transition: transform 0.7s ease;
         }
 
-        .theme-card:hover .theme-image {
+        .cloud-card:hover .theme-image {
             transform: scale(1.1);
         }
 
-        .theme-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.8) 100%);
-            opacity: 0;
-            transition: opacity 0.4s ease;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-end;
-            padding: 1.5rem;
-        }
-
-        .theme-card:hover .theme-overlay {
-            opacity: 1;
-        }
-
-        .theme-badge {
-            position: absolute;
-            top: -10px;
-            left: -10px;
-            background: linear-gradient(135deg, #FFD700, #FFA500);
-            padding: 0.5rem 1rem;
-            border-radius: 50px;
-            font-size: 1rem;
-            font-weight: bold;
-            color: white;
-            box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
-            transform: rotate(-10deg);
-            z-index: 10;
-        }
-
+        /* 로딩 오버레이 */
         .loading-overlay {
             display: none;
             position: fixed;
@@ -77,254 +63,112 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: linear-gradient(135deg, rgba(147, 51, 234, 0.95) 0%, rgba(236, 72, 153, 0.95) 100%);
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
             z-index: 9999;
             justify-content: center;
             align-items: center;
+            flex-direction: column;
         }
 
         .loading-overlay.active {
             display: flex;
-            animation: fadeIn 0.3s ease-in;
+            animation: fadeIn 0.5s ease-out;
         }
 
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-        .loading-content {
-            text-align: center;
-            animation: slideUp 0.5s ease-out;
-        }
-
-        @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .loading-spinner {
-            max-width: 200px;
-            max-height: 200px;
-            filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.3));
-            margin-bottom: 2rem;
-        }
-
-        .loading-text {
-            font-size: 2rem;
-            font-weight: 800;
-            color: white;
-            margin-bottom: 1rem;
-            text-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-        }
-
-        .loading-subtext {
-            font-size: 1.1rem;
-            color: rgba(255, 255, 255, 0.9);
-            font-weight: 500;
-        }
-
-        .dots {
-            display: inline-block;
-        }
-
-        .dots span {
-            animation: blink 1.4s infinite;
-            opacity: 0;
-        }
-
-        .dots span:nth-child(1) {
-            animation-delay: 0s;
-        }
-
-        .dots span:nth-child(2) {
-            animation-delay: 0.2s;
-        }
-
-        .dots span:nth-child(3) {
-            animation-delay: 0.4s;
-        }
-
-        @keyframes blink {
-            0%, 20% { opacity: 0; }
-            40% { opacity: 1; }
-            100% { opacity: 0; }
-        }
-
-        .sparkle {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-        }
-
-        .sparkle::before,
-        .sparkle::after {
-            content: '✨';
-            position: absolute;
-            font-size: 2rem;
-            animation: float 3s ease-in-out infinite;
-        }
-
-        .sparkle::before {
-            top: 20%;
-            left: 20%;
-            animation-delay: 0s;
-        }
-
-        .sparkle::after {
-            top: 60%;
-            right: 20%;
-            animation-delay: 1.5s;
-        }
-
-        @keyframes float {
-            0%, 100% {
-                transform: translateY(0) rotate(0deg);
-                opacity: 0;
-            }
-            50% {
-                transform: translateY(-30px) rotate(180deg);
-                opacity: 1;
-            }
-        }
-
-        .storybook-container {
-            position: relative;
-        }
-
-        .storybook-container::before {
-            content: '📚';
-            position: absolute;
-            font-size: 3rem;
-            top: -20px;
-            left: -20px;
-            animation: bounce 2s ease-in-out infinite;
-        }
-
-        .storybook-container::after {
-            content: '🎨';
-            position: absolute;
-            font-size: 3rem;
-            top: -20px;
-            right: -20px;
-            animation: bounce 2s ease-in-out infinite;
-            animation-delay: 1s;
-        }
-
+        /* 로딩 텍스트 애니메이션 */
+        .bounce-text { animation: bounce 1s infinite; }
         @keyframes bounce {
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(-10px); }
         }
-
-        .cloud {
-            position: absolute;
-            background: white;
-            border-radius: 100px;
-            opacity: 0.7;
-            animation: drift 20s linear infinite;
-        }
-
-        .cloud-1 {
-            width: 100px;
-            height: 40px;
-            top: 10%;
-            left: -100px;
-        }
-
-        .cloud-2 {
-            width: 150px;
-            height: 50px;
-            top: 30%;
-            left: -150px;
-            animation-delay: 5s;
-        }
-
-        .cloud-3 {
-            width: 120px;
-            height: 45px;
-            top: 60%;
-            left: -120px;
-            animation-delay: 10s;
-        }
-
-        @keyframes drift {
-            from { left: -200px; }
-            to { left: calc(100% + 200px); }
-        }
     </style>
 </head>
-<body class="min-h-screen bg-gradient-to-br from-purple-100 via-pink-50 to-blue-100 py-8 relative overflow-hidden">
+<body class="gradient-bg min-h-screen overflow-x-hidden text-gray-700">
 
-<!-- 떠다니는 구름들 -->
-<div class="cloud cloud-1"></div>
-<div class="cloud cloud-2"></div>
-<div class="cloud cloud-3"></div>
+<div class="fixed inset-0 pointer-events-none">
+    <div class="absolute top-10 left-10 w-64 h-64 bg-white/20 rounded-full blur-3xl mix-blend-overlay animate-pulse"></div>
+    <div class="absolute bottom-20 right-20 w-80 h-80 bg-purple-300/20 rounded-full blur-3xl mix-blend-overlay animate-pulse" style="animation-delay: 2s;"></div>
+</div>
 
-<!-- 로딩 오버레이 -->
 <div id="loadingOverlay" class="loading-overlay">
-    <div class="sparkle"></div>
-    <div class="loading-content">
-        <img src="/images/toki.gif" alt="이야기 생성 중" class="loading-spinner mx-auto">
-        <div class="loading-text">
-            이야기 생성 중<span class="dots"><span>.</span><span>.</span><span>.</span></span>
+    <div class="bg-white/90 p-10 rounded-[3rem] shadow-2xl text-center border-4 border-purple-100">
+        <div class="w-32 h-32 mx-auto mb-6 rounded-full overflow-hidden border-4 border-purple-200">
+            <img src="/images/toki.gif" alt="로딩중" class="w-full h-full object-cover">
         </div>
-        <div class="loading-subtext">
-            마법같은 모험이 곧 시작됩니다! 🌟
-        </div>
+
+        <h3 class="text-3xl font-title text-purple-600 mb-2 bounce-text">이야기를 만들고 있어요!</h3>
+        <p class="text-gray-500 font-medium">잠시만 기다려주세요... ✨</p>
     </div>
 </div>
 
-<div class="max-w-6xl mx-auto px-4 relative z-10">
-    <div class="flex flex-col gap-4 mb-8">
-        <a href="/main" class="inline-flex items-center gap-2 text-purple-600 hover:text-purple-800 font-bold text-xl">
-            <span class="text-2xl">←</span>
-            <span>메인으로 돌아가기</span>
+<div class="relative z-10 max-w-7xl mx-auto px-4 py-8 flex flex-col min-h-screen">
+
+    <div class="flex items-center justify-between mb-12">
+        <a href="/main" class="group flex items-center gap-2 px-5 py-2.5 bg-white/60 rounded-full hover:bg-white transition-all shadow-sm backdrop-blur-sm">
+            <svg class="text-gray-500 group-hover:text-purple-500 transition-colors" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+            <span class="font-title text-gray-600 group-hover:text-purple-500 text-lg">뒤로가기</span>
         </a>
-        <div class="text-center">
-            <h1 class="text-5xl font-bold text-purple-700 mb-3 drop-shadow-lg">✨ 어떤 이야기를 만들까? ✨</h1>
-            <p class="text-2xl text-gray-700">마음에 드는 그림을 골라보세요! 🎈</p>
+
+        <div class="hidden sm:block px-6 py-2 bg-white/40 rounded-full text-white font-title text-lg shadow-sm">
+            🎨 아이가 좋아할 테마를 골라주세요
         </div>
     </div>
 
-    <div class="storybook-container">
-        <div id="themeGrid" class="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+    <div class="text-center mb-16">
+        <div class="inline-flex justify-center items-center w-20 h-20 bg-white rounded-[2rem] shadow-lg mb-6 transform rotate-3">
+            <svg class="text-yellow-400" xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>
+        </div>
+        <h1 class="text-5xl sm:text-6xl font-title text-white mb-4 drop-shadow-md tracking-wide">
+            어떤 세상으로 떠날까요?
+        </h1>
+        <p class="text-white/90 text-xl font-medium">
+            마음에 드는 그림을 선택하면 이야기가 시작돼요
+        </p>
+    </div>
 
-            <!-- Thymeleaf each loop for themes -->
-            <div th:each="theme : ${themes}" class="theme-card bg-white rounded-3xl shadow-2xl overflow-hidden">
-                <div class="theme-badge" th:text="${theme.name}">테마 이름</div>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-12">
 
-                <form th:action="@{/story/create}" method="post" onsubmit="showLoading()">
-                    <input type="hidden" name="childId" th:value="${childId}" />
-                    <input type="hidden" name="themeId" th:value="${theme.id}" />
+        <div th:each="theme : ${themes}" class="h-full">
+            <form th:action="@{/story/create}" method="post" onsubmit="showLoading()" class="h-full">
+                <input type="hidden" name="childId" th:value="${childId}" />
+                <input type="hidden" name="themeId" th:value="${theme.id}" />
 
-                    <div class="relative cursor-pointer">
-                        <!-- 테마 이미지 (실제 이미지 경로로 변경 필요) -->
+                <button type="submit" class="cloud-card w-full h-full text-left group p-3">
+                    <div class="theme-image-container aspect-[4/3] mb-5 relative">
+                        <div class="absolute top-4 left-4 z-10 bg-white/90 backdrop-blur px-4 py-1.5 rounded-full shadow-md border border-white">
+                            <span class="font-title text-purple-600" th:text="${theme.name}">테마명</span>
+                        </div>
+
                         <img th:src="@{'/images/themes/' + ${theme.id} + '.jpg'}"
                              th:alt="${theme.name}"
-                             class="theme-image"
-                             onerror="this.src='https://via.placeholder.com/400x250?text=' + encodeURIComponent(this.alt)">
+                             class="theme-image w-full h-full object-cover"
+                             onerror="this.src='https://via.placeholder.com/400x300/e9d5ff/8b5cf6?text=Theme'">
 
-                        <!-- 호버 시 나타나는 텍스트 오버레이 -->
-                        <div class="theme-overlay">
-                            <h3 class="text-3xl font-bold text-white mb-3" th:text="${theme.name}">테마 이름</h3>
-                            <p class="text-white text-xl leading-relaxed" th:text="${theme.description}">테마 설명</p>
-                            <button type="submit" class="mt-4 bg-yellow-400 text-purple-800 px-6 py-3 rounded-full font-bold text-xl shadow-lg hover:bg-yellow-300 transition-colors">
-                                이 이야기 시작하기! 🚀
-                            </button>
+                        <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                            <div class="bg-white/90 backdrop-blur text-purple-600 px-6 py-3 rounded-full font-title text-lg shadow-lg transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
+                                이 테마 선택하기 ✨
+                            </div>
                         </div>
                     </div>
-                </form>
-            </div>
 
-            <div th:if="${#lists.isEmpty(themes)}" class="col-span-full text-center text-gray-500 py-10">
-                <p class="text-2xl">🎭 현재 선택할 수 있는 테마가 없습니다.</p>
+                    <div class="px-4 pb-4">
+                        <h3 class="text-2xl font-title text-gray-800 mb-2 group-hover:text-purple-600 transition-colors" th:text="${theme.name}">테마 이름</h3>
+                        <p class="text-gray-500 text-lg leading-relaxed line-clamp-2" th:text="${theme.description}">
+                            테마에 대한 설명이 들어가는 곳입니다. 몽글몽글한 구름 위를 걷는 듯한 기분을 느껴보세요.
+                        </p>
+                    </div>
+                </button>
+            </form>
+        </div>
+
+        <div th:if="${#lists.isEmpty(themes)}" class="col-span-full text-center py-20">
+            <div class="cloud-card inline-block p-12">
+                <svg class="mx-auto text-gray-300 mb-4" xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                <h3 class="text-2xl font-title text-gray-600">준비된 테마가 없어요</h3>
+                <p class="text-gray-400 mt-2">관리자에게 문의해주세요.</p>
             </div>
         </div>
     </div>
@@ -337,26 +181,18 @@
         if (isSubmitting) {
             return false;
         }
-
         isSubmitting = true;
         document.getElementById('loadingOverlay').classList.add('active');
-
-        const buttons = document.querySelectorAll('button[type="submit"]');
-        buttons.forEach(button => {
-            button.disabled = true;
-        });
-
+        // 폼 제출을 위해 true 반환
         return true;
     }
 
+    // 페이지 복원 시 (뒤로가기 등) 로딩 화면 해제
     window.addEventListener('pageshow', function(event) {
-        isSubmitting = false;
-        document.getElementById('loadingOverlay').classList.remove('active');
-
-        const buttons = document.querySelectorAll('button[type="submit"]');
-        buttons.forEach(button => {
-            button.disabled = false;
-        });
+        if (event.persisted || (window.performance && window.performance.navigation.type === 2)) {
+             isSubmitting = false;
+             document.getElementById('loadingOverlay').classList.remove('active');
+        }
     });
 </script>
 

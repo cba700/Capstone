@@ -557,13 +557,45 @@ public class StoryService {
 		List<Story> stories = storyRepository.findByChildIdAndStatusInOrderByCompletedAtDesc(
 			childId, List.of(StoryStatus.COMPLETED));
 		return stories.stream()
-			.map(story -> StoryBookSummaryDto.builder()
-				.storyId(story.getId())
-				.title(resolveDisplayTitle(story))
-				.summary(resolveDisplaySummary(story))
-				.completedAt(story.getCompletedAt())
-				.build())
+			.map(story -> {
+				// 대표 이미지 선택 (중간 페이지 우선, 없으면 첫 이미지)
+				String representativeImage = getRepresentativeImage(story);
+				String jobName = story.getSelectedJob() != null ? story.getSelectedJob().getName() : null;
+
+				return StoryBookSummaryDto.builder()
+					.storyId(story.getId())
+					.title(resolveDisplayTitle(story))
+					.summary(resolveDisplaySummary(story))
+					.imageUrl(representativeImage)
+					.jobName(jobName)
+					.completedAt(story.getCompletedAt())
+					.build();
+			})
 			.toList();
+	}
+
+	private String getRepresentativeImage(Story story) {
+		List<StoryPage> pages = storyPageRepository.findByStoryOrderByStepAsc(story);
+		if (pages.isEmpty()) {
+			return null;
+		}
+
+		// 중간 페이지의 이미지 우선 (직업 선택/체험 화면)
+		int midIndex = pages.size() / 2;
+		for (int i = midIndex; i < pages.size(); i++) {
+			if (StringUtils.hasText(pages.get(i).getImageUrl())) {
+				return pages.get(i).getImageUrl();
+			}
+		}
+
+		// 중간 이후에 없으면 처음부터 찾기
+		for (StoryPage page : pages) {
+			if (StringUtils.hasText(page.getImageUrl())) {
+				return page.getImageUrl();
+			}
+		}
+
+		return null;
 	}
 
 	@Transactional(readOnly = true)
@@ -600,7 +632,31 @@ public class StoryService {
 				.themeWorld(choice.getTargetThemeWorld())
 				.build())
 			.collect(Collectors.toList());
-		return StoryPageResponseDto.from(page, choices);
+
+		// 선택 로그 조회
+		ChoiceResponseDto selectedChoice = storySelectLogRepository.findByPage(page)
+			.map(log -> ChoiceResponseDto.builder()
+				.choiceId(log.getChoice().getId())
+				.text(log.getChoice().getLabel())
+				.jobName(log.getChoice().getTargetJobName())
+				.themeWorld(log.getChoice().getTargetThemeWorld())
+				.build())
+			.orElse(null);
+
+		StoryPageResponseDto dto = StoryPageResponseDto.from(page, choices);
+		return StoryPageResponseDto.builder()
+			.storyId(dto.storyId())
+			.step(dto.step())
+			.themeName(dto.themeName())
+			.narration(dto.narration())
+			.imageUrl(dto.imageUrl())
+			.hasChoice(dto.hasChoice())
+			.choices(dto.choices())
+			.storyTitle(dto.storyTitle())
+			.completion(dto.completion())
+			.hasNext(dto.hasNext())
+			.selectedChoice(selectedChoice)
+			.build();
 	}
 
 	@Transactional(readOnly = true)

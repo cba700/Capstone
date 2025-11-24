@@ -113,7 +113,11 @@
 <div class="mobile-container">
     <!-- 제목 -->
     <div class="text-center mb-6 mobile-header">
-        <h1 class="text-4xl font-black text-gray-800 mb-2" th:text="${page.themeName}">테마 이름</h1>
+        <div th:if="${page.storyTitle != null}" class="mb-2">
+            <p class="text-sm uppercase text-purple-500 font-semibold">이야기 제목</p>
+            <h1 class="text-3xl font-black text-gray-800" th:text="${page.storyTitle}">우리의 멋진 이야기</h1>
+        </div>
+        <h2 class="text-2xl font-bold text-gray-700 mb-2" th:text="${page.themeName}">테마 이름</h2>
         <p class="text-gray-600">스토리를 읽고 계시네요!</p>
     </div>
 
@@ -143,12 +147,12 @@
                         <p class="text-gray-800 text-lg leading-relaxed whitespace-pre-line" th:text="${page.narration}">나레이션이 여기에 표시됩니다.</p>
                     </div>
 
-                    <!-- 스토리 제목 -->
-                    <div th:if="${page.storyTitle != null}" class="bg-white border border-purple-200 rounded-2xl p-4 mb-6">
-                        <p class="text-sm uppercase text-purple-500 font-semibold">이야기 제목</p>
-                        <p class="text-xl font-bold text-gray-800" th:text="${page.storyTitle}">우리의 멋진 이야기</p>
+                    <!-- 선택한 분기점 표시 -->
+                    <div th:if="${page.selectedChoice != null}" class="bg-gradient-to-r from-pink-50 to-purple-50 border-2 border-purple-300 rounded-2xl p-4 mb-4">
+                        <p class="text-sm uppercase text-purple-600 font-bold mb-2">💫 당신의 선택</p>
+                        <p class="text-gray-800 font-semibold" th:text="${page.selectedChoice.text}">선택한 선택지</p>
                     </div>
-                    
+
                     <!-- 페이지 표시 -->
                     <div class="bg-blue-50 border border-blue-200 rounded-2xl p-3 mb-4 text-center">
                         <p class="text-blue-600 font-semibold" th:text="'페이지 ' + ${page.step}">페이지 1</p>

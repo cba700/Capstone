@@ -1,11 +1,13 @@
 package com.capstone.domain.story.service;
 
+import com.capstone.domain.story.dto.request.ChildAnalysisRequestDto;
 import com.capstone.domain.story.dto.request.JobExperienceStartRequestDto;
 import com.capstone.domain.story.dto.request.StoryCompletionRequestDto;
 import com.capstone.domain.story.dto.request.StoryNextStepRequestDto;
 import com.capstone.domain.story.dto.request.StoryStartRequestDto;
 import com.capstone.domain.story.dto.request.TitleGenerationRequestDto;
 import com.capstone.domain.story.dto.response.AiResponseDto;
+import com.capstone.domain.story.dto.response.ChildAnalysisResponseDto;
 import com.capstone.domain.story.dto.response.TitleResponseDto;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -97,6 +99,13 @@ public class GeminiStoryGenerator implements StoryGenerator {
         String prompt = buildTitleGenerationPrompt(dto);
         String rawResponse = generateContent(prompt);
         return parseTitleResponse(rawResponse);
+    }
+
+    @Override
+    public ChildAnalysisResponseDto analyzeChild(ChildAnalysisRequestDto dto) {
+        String prompt = buildChildAnalysisPrompt(dto);
+        String rawResponse = generateContent(prompt);
+        return parseChildAnalysisResponse(rawResponse);
     }
 
 
@@ -360,6 +369,112 @@ public class GeminiStoryGenerator implements StoryGenerator {
             return text;
         }
         return null;
+    }
+
+    private String buildChildAnalysisPrompt(ChildAnalysisRequestDto dto) {
+        StringBuilder prompt = new StringBuilder();
+        prompt.append("당신은 아동 발달 및 진로 전문가입니다.\n");
+        prompt.append("아이의 스토리 선택 기록을 바탕으로 성향을 분석하고, 부모님께 유익한 조언을 제공하세요.\n\n");
+
+        prompt.append("## 아이 정보\n");
+        prompt.append("- 이름: ").append(dto.getChildName()).append('\n');
+        prompt.append("- 나이: ").append(dto.getChildAge()).append("세\n");
+        prompt.append("- 성별: ").append(dto.getChildGender()).append('\n');
+        prompt.append("- 완성한 스토리: ").append(dto.getCompletedStoryCount()).append("개\n\n");
+
+        prompt.append("## 성향 태그 통계 (선택 횟수)\n");
+        if (dto.getTraitCounts() != null && !dto.getTraitCounts().isEmpty()) {
+            dto.getTraitCounts().entrySet().stream()
+                .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
+                .forEach(entry -> prompt.append("- ").append(entry.getKey()).append(": ").append(entry.getValue()).append("회\n"));
+        } else {
+            prompt.append("- 아직 선택 기록이 없습니다.\n");
+        }
+
+        prompt.append("\n## 선택한 직업\n");
+        if (dto.getSelectedJobs() != null && !dto.getSelectedJobs().isEmpty()) {
+            dto.getSelectedJobs().forEach(job -> prompt.append("- ").append(job).append('\n'));
+        } else {
+            prompt.append("- 아직 선택한 직업이 없습니다.\n");
+        }
+
+        prompt.append("\n## 관심사(테마)\n");
+        if (dto.getThemes() != null && !dto.getThemes().isEmpty()) {
+            dto.getThemes().forEach(theme -> prompt.append("- ").append(theme).append('\n'));
+        } else {
+            prompt.append("- 아직 관심사가 기록되지 않았습니다.\n");
+        }
+
+        prompt.append("\n## 분석 요청\n");
+        prompt.append("다음 형식의 JSON으로 분석 결과를 제공하세요:\n");
+        prompt.append("```json\n");
+        prompt.append("{\n");
+        prompt.append("  \"personalityAnalysis\": \"아이의 전반적인 성격 분석 (2-3문장)\",\n");
+        prompt.append("  \"strengths\": [\"강점1\", \"강점2\", \"강점3\"],\n");
+        prompt.append("  \"interestAnalysis\": \"관심 분야 분석 (2-3문장)\",\n");
+        prompt.append("  \"recommendedActivities\": [\"추천 활동1\", \"추천 활동2\", \"추천 활동3\"],\n");
+        prompt.append("  \"recommendedCareerPaths\": [\"추천 직업 분야1\", \"추천 직업 분야2\", \"추천 직업 분야3\"],\n");
+        prompt.append("  \"overallAssessment\": \"부모님을 위한 종합 소견 및 양육 조언 (3-4문장)\"\n");
+        prompt.append("}\n");
+        prompt.append("```\n\n");
+        prompt.append("모든 텍스트는 한국어로 작성하고, 부드럽고 긍정적인 어조를 유지하세요.\n");
+        prompt.append("JSON 블록만 출력하고, 다른 설명은 포함하지 마세요.\n");
+
+        return prompt.toString();
+    }
+
+    private ChildAnalysisResponseDto parseChildAnalysisResponse(String rawResponse) {
+        Matcher matcher = JSON_BLOCK_PATTERN.matcher(rawResponse);
+        if (!matcher.find()) {
+            log.warn("[Gemini] No JSON block found in child analysis response");
+            return createFallbackAnalysisResponse();
+        }
+
+        String jsonText = matcher.group(1);
+        try {
+            JsonNode root = OBJECT_MAPPER.readTree(jsonText);
+
+            List<String> strengths = parseStringArray(root.get("strengths"));
+            List<String> recommendedActivities = parseStringArray(root.get("recommendedActivities"));
+            List<String> recommendedCareerPaths = parseStringArray(root.get("recommendedCareerPaths"));
+
+            return ChildAnalysisResponseDto.builder()
+                .personalityAnalysis(asTrimmedOrNull(root.get("personalityAnalysis")))
+                .strengths(strengths.isEmpty() ? List.of("분석 중입니다") : strengths)
+                .interestAnalysis(asTrimmedOrNull(root.get("interestAnalysis")))
+                .recommendedActivities(recommendedActivities.isEmpty() ? List.of("곧 추천해드립니다") : recommendedActivities)
+                .recommendedCareerPaths(recommendedCareerPaths.isEmpty() ? List.of("분석 중입니다") : recommendedCareerPaths)
+                .overallAssessment(asTrimmedOrNull(root.get("overallAssessment")))
+                .build();
+        } catch (JsonProcessingException e) {
+            log.error("[Gemini] Failed to parse child analysis JSON: {}", e.getMessage());
+            return createFallbackAnalysisResponse();
+        }
+    }
+
+    private ChildAnalysisResponseDto createFallbackAnalysisResponse() {
+        return ChildAnalysisResponseDto.builder()
+            .personalityAnalysis("분석을 진행 중입니다. 잠시 후 다시 시도해주세요.")
+            .strengths(List.of("창의력", "호기심", "적극성"))
+            .interestAnalysis("아이의 관심사를 분석 중입니다.")
+            .recommendedActivities(List.of("그림 그리기", "책 읽기", "자연 탐험"))
+            .recommendedCareerPaths(List.of("예술가", "과학자", "교육자"))
+            .overallAssessment("아이의 성장 가능성을 분석하고 있습니다. 곧 상세한 분석 결과를 제공해드리겠습니다.")
+            .build();
+    }
+
+    private List<String> parseStringArray(JsonNode arrayNode) {
+        if (arrayNode == null || !arrayNode.isArray()) {
+            return Collections.emptyList();
+        }
+        List<String> result = new java.util.ArrayList<>();
+        arrayNode.forEach(node -> {
+            String text = asTrimmedOrNull(node);
+            if (text != null) {
+                result.add(text);
+            }
+        });
+        return result;
     }
 
     private String asTrimmedText(Object value) {

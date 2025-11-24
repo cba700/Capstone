@@ -2,33 +2,122 @@
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>내 이야기 보관함</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Jua&family=Poor+Story&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Poor Story', cursive; }
+        h1, h2, h3, button, a, .font-title { font-family: 'Jua', sans-serif; }
+
+        /* 배경 애니메이션 */
+        .gradient-bg {
+            background: linear-gradient(135deg, #E0C3FC 0%, #8EC5FC 100%);
+            background-attachment: fixed;
+            background-size: 200% 200%;
+            animation: gradient 15s ease infinite;
+        }
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* 구름 카드 스타일 */
+        .cloud-card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            border: 2px solid rgba(255, 255, 255, 0.6);
+            border-radius: 2rem;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .cloud-card:hover {
+            transform: translateY(-8px);
+            background: rgba(255, 255, 255, 0.95);
+            border-color: #fff;
+            box-shadow: 0 20px 40px rgba(142, 197, 252, 0.2);
+        }
+
+        /* 말줄임표 스타일 */
+        .line-clamp-3 {
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+    </style>
 </head>
-<body class="bg-gradient-to-br from-purple-100 via-pink-50 to-blue-100 min-h-screen">
-<div class="max-w-6xl mx-auto py-10 px-4">
-    <div class="flex items-center justify-between mb-6">
-        <div>
-            <h1 class="text-3xl font-bold text-gray-800">내 이야기 보관함</h1>
-            <p class="text-gray-600">완성된 스토리북을 다시 읽어보아요.</p>
+<body class="gradient-bg min-h-screen overflow-x-hidden text-gray-700">
+
+<div class="min-h-screen flex flex-col">
+    <header class="p-6">
+        <div class="max-w-6xl mx-auto flex items-center justify-between">
+            <a href="/main" class="group flex items-center gap-2 px-5 py-2.5 bg-white/60 rounded-full hover:bg-white transition-all shadow-sm">
+                <svg class="text-gray-500 group-hover:text-purple-500 transition-colors" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                <span class="font-title text-gray-600 group-hover:text-purple-500 text-lg">메인으로</span>
+            </a>
         </div>
-        <a href="/main" class="text-purple-600 font-semibold hover:text-purple-800">메인으로</a>
-    </div>
-    <div id="bookshelfGrid" class="grid md:grid-cols-2 gap-6">
-        <div th:if="${#lists.isEmpty(books)}" class="text-gray-500">아직 저장한 스토리가 없어요. 새로운 모험을 시작해보세요!</div>
-        <div th:each="book : ${books}" class="bg-white rounded-3xl shadow-xl p-6 flex flex-col gap-3">
-            <div class="text-sm font-semibold text-purple-500"
-                 th:text="${book.completedAt != null ? #temporals.format(book.completedAt, 'yyyy년 MM월 dd일 HH:mm') : '방금 완성된 이야기'}">완료시각</div>
-            <div class="text-xl font-bold text-gray-800" th:text="${book.title}">제목</div>
-            <p class="text-gray-600 line-clamp-3" th:text="${book.summary}">요약</p>
-            <div class="mt-auto flex gap-2">
-                <a th:href="@{'/story/read/{storyId}/page/1'(storyId=${book.storyId})}"
-                   class="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl px-4 py-2 font-semibold text-center">📖 다시 읽기</a>
-                <a th:href="@{'/story/view'(bookId=${book.storyId})}"
-                   class="flex-1 bg-gradient-to-r from-gray-500 to-gray-600 text-white rounded-xl px-4 py-2 font-semibold text-center">📄 전체 보기</a>
+    </header>
+
+    <main class="flex-1 max-w-6xl mx-auto w-full px-4 pb-12">
+
+        <div class="text-center mb-10">
+            <div class="inline-flex justify-center items-center w-16 h-16 bg-white/90 rounded-full shadow-md mb-4 text-purple-400">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
             </div>
+            <h1 class="text-4xl sm:text-5xl font-bold text-white drop-shadow-sm mb-2">내 이야기 보관함</h1>
+            <p class="text-white/90 text-lg font-medium">우리가 함께 만든 소중한 추억들이에요</p>
         </div>
-    </div>
+
+        <div id="bookshelfGrid" class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+            <div th:if="${#lists.isEmpty(books)}" class="col-span-full text-center py-16">
+                <div class="cloud-card inline-block p-10 rounded-[3rem]">
+                    <div class="flex justify-center text-gray-300 mb-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+                    </div>
+                    <h3 class="text-2xl font-title text-gray-600 mb-2">아직 이야기가 없어요</h3>
+                    <p class="text-gray-500 mb-6">첫 번째 모험을 떠나볼까요?</p>
+                    <a href="/main" class="inline-block px-6 py-3 bg-purple-400 text-white rounded-xl font-title hover:bg-purple-500 transition-colors">
+                        이야기 만들기 시작
+                    </a>
+                </div>
+            </div>
+
+            <div th:each="book : ${books}" class="cloud-card p-6 flex flex-col h-full group relative">
+
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 text-purple-500 rounded-lg text-sm font-bold">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                        <span th:text="${book.completedAt != null ? #temporals.format(book.completedAt, 'yyyy.MM.dd') : '방금 전'}"></span>
+                    </div>
+                </div>
+
+                <div class="flex-1 mb-6">
+                    <h3 class="text-2xl font-title text-gray-800 mb-3 leading-tight group-hover:text-purple-600 transition-colors" th:text="${book.title}">제목</h3>
+                    <div th:if="${book.imageUrl != null}" class="w-full aspect-video rounded-xl overflow-hidden shadow-md mb-3">
+                        <img th:src="${book.imageUrl}" th:alt="${book.title}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+                    </div>
+                    <div th:if="${book.jobName != null}" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-sm font-bold">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
+                        <span th:text="${book.jobName}">직업명</span>
+                    </div>
+                </div>
+
+                <div class="pt-4 border-t border-gray-100">
+                    <a th:href="@{'/story/read/{storyId}/page/1'(storyId=${book.storyId})}"
+                       class="block w-full bg-gradient-to-r from-purple-400 to-pink-400 text-white rounded-xl py-3.5 font-title text-lg text-center hover:from-purple-500 hover:to-pink-500 shadow-md hover:shadow-lg transform active:scale-95 transition-all flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+                        <span>다시 읽기</span>
+                    </a>
+                </div>
+            </div>
+
+        </div>
+    </main>
 </div>
+
 </body>
 </html>
