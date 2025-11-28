@@ -173,6 +173,7 @@
                 <div class="flex-1 flex flex-col justify-center">
                     <div class="bg-purple-50 rounded-2xl p-6 mb-6">
                         <p class="text-gray-800 text-lg leading-relaxed whitespace-pre-line" th:text="${page.narration}">나레이션이 여기에 표시됩니다.</p>
+                        <audio th:src="@{/api/tts/story/{storyId}/page/{pageNumber}(storyId=${page.storyId}, pageNumber=${page.step})}" autoplay controls class="mt-4 w-full"></audio>
                     </div>
 
                     <!-- 스토리 제목 -->
