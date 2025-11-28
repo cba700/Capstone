@@ -33,6 +33,13 @@ public class Child {
 	@Column(nullable = false, length = 10)
 	private Gender gender;
 
+	@Column(name = "elevenlabs_voice_id")
+	private String elevenlabsVoiceId;
+
+	public void setElevenlabsVoiceId(String elevenlabsVoiceId) {
+		this.elevenlabsVoiceId = elevenlabsVoiceId;
+	}
+
 	public enum Gender{
 		BOY,GIRL
 	}

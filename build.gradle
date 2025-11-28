@@ -46,9 +46,8 @@ dependencies {
 	// Google AI (for Gemini API)
 	implementation 'com.google.genai:google-genai:1.0.0'
 
-    implementation 'net.andrewcpu:elevenlabs-api:2.7.8'
-	// Google Cloud
-    implementation 'com.google.cloud:google-cloud-texttospeech:2.78.0'
+	// WebClient for ElevenLabs API calls
+	implementation 'org.springframework.boot:spring-boot-starter-webflux'
 
 	// Lombok (Optional, for reducing boilerplate code)
 	compileOnly 'org.projectlombok:lombok:1.18.30'

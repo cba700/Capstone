@@ -39,3 +39,6 @@ story:
   image:
     save-path: "./story-images"
     base-url: "/story-images"
+
+elevenlabs:
+  api-key: "sk_677b7f64b8332fe340e0439b0210f03cbc3c59d9d563d357"

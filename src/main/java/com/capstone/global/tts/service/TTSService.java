@@ -1,61 +1,77 @@
 package com.capstone.global.tts.service;
 
-import com.google.cloud.texttospeech.v1.AudioConfig;
-import com.google.cloud.texttospeech.v1.AudioEncoding;
-import com.google.cloud.texttospeech.v1.SsmlVoiceGender;
-import com.google.cloud.texttospeech.v1.SynthesisInput;
-import com.google.cloud.texttospeech.v1.TextToSpeechClient;
-import com.google.cloud.texttospeech.v1.VoiceSelectionParams;
-import com.google.protobuf.ByteString;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
+
+import java.util.HashMap;
+import java.util.Map;
+import org.springframework.http.HttpStatusCode;
 
 @Service
 public class TTSService {
 
     private static final Logger logger = LoggerFactory.getLogger(TTSService.class);
 
-    private final TextToSpeechClient textToSpeechClient;
+    private final WebClient webClient;
+    private final String elevenLabsApiKey;
+    private static final String ELEVENLABS_API_BASE_URL = "https://api.elevenlabs.io/v1";
+    private static final String DEFAULT_MODEL_ID = "eleven_multilingual_v2"; // Recommended for multilingual use
 
-    @Autowired
-    public TTSService(TextToSpeechClient textToSpeechClient) {
-        this.textToSpeechClient = textToSpeechClient;
+    public TTSService(WebClient.Builder webClientBuilder, @Value("${elevenlabs.api-key}") String elevenLabsApiKey) {
+        this.webClient = webClientBuilder.baseUrl(ELEVENLABS_API_BASE_URL).build();
+        this.elevenLabsApiKey = elevenLabsApiKey;
     }
 
-    public byte[] synthesizeText(String text) {
-        if (text == null || text.trim().isEmpty()) {
+    public byte[] synthesizeText(String text, String voiceId) {
+        if (!StringUtils.hasText(text)) {
             logger.warn("Received empty or null text for TTS synthesis.");
-            return new byte[0]; // Return empty byte array for empty text
+            return new byte[0];
+        }
+        if (!StringUtils.hasText(voiceId)) {
+            logger.warn("Received empty or null voiceId for TTS synthesis.");
+            return new byte[0];
         }
 
-        // Set the text input to be synthesized
-        SynthesisInput input = SynthesisInput.newBuilder().setText(text).build();
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("text", text);
+        requestBody.put("model_id", DEFAULT_MODEL_ID);
+        // Optional: voice_settings for stability, similarity_boost
+        // requestBody.put("voice_settings", Map.of("stability", 0.5, "similarity_boost", 0.75));
 
-        // Build the voice request, select the language code ("en-US") and the SSML
-        // voice gender ("FEMALE")
-        // For Korean, use "ko-KR"
-        VoiceSelectionParams voice = VoiceSelectionParams.newBuilder()
-                .setLanguageCode("ko-KR")
-                .setSsmlGender(SsmlVoiceGender.FEMALE) // Or MALE, NEUTRAL
-                .build();
 
-        // Select the type of audio file you want returned
-        AudioConfig audioConfig = AudioConfig.newBuilder()
-                .setAudioEncoding(AudioEncoding.MP3) // Or LINEAR16, OGG_OPUS
-                .build();
-
-        // Perform the text-to-speech request on the text input with the selected voice parameters and audio file type
         try {
-            com.google.cloud.texttospeech.v1.SynthesizeSpeechResponse response =
-                    textToSpeechClient.synthesizeSpeech(input, voice, audioConfig);
+            logger.info("Synthesizing text for voiceId: {}", voiceId);
 
-            // Get the audio contents from the response
-            ByteString audioContents = response.getAudioContent();
-            return audioContents.toByteArray();
+            Mono<byte[]> responseMono = webClient.post()
+                    .uri("/text-to-speech/{voiceId}", voiceId)
+                    .header("xi-api-key", elevenLabsApiKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(requestBody)
+                    .retrieve()
+                    .onStatus(HttpStatusCode::is4xxClientError, clientResponse ->
+                            clientResponse.bodyToMono(String.class).flatMap(errorBody ->
+                                    Mono.error(new RuntimeException("ElevenLabs Client Error: " + clientResponse.statusCode() + " - " + errorBody))))
+                    .onStatus(HttpStatusCode::is5xxServerError, clientResponse ->
+                            Mono.error(new RuntimeException("ElevenLabs Server Error: " + clientResponse.statusCode())))
+                    .bodyToMono(byte[].class);
+
+            byte[] audioContents = responseMono.block(); // Blocking for simplicity
+
+            if (audioContents == null || audioContents.length == 0) {
+                logger.warn("ElevenLabs returned empty audio content for voiceId: {}", voiceId);
+                return new byte[0];
+            }
+
+            return audioContents;
         } catch (Exception e) {
-            logger.error("Error during TTS synthesis for text: {}", text, e);
+            logger.error("Error during ElevenLabs TTS synthesis for voiceId: {}, text: {}", voiceId, text, e);
             return new byte[0]; // Return empty byte array on error
         }
     }
