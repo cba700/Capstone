@@ -101,6 +101,10 @@
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
             아이 관리
         </a>
+        <button id="openRecordModalBtn" class="w-full flex items-center gap-4 px-5 py-3.5 rounded-2xl hover:bg-gray-50 text-gray-600 font-title text-lg transition-transform hover:translate-x-1 text-left">
+             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-mic"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+            대표 목소리 설정
+        </button>
     </nav>
 
     <div class="border-t border-gray-100 pt-4 mt-4">
@@ -233,27 +237,6 @@
                     </div>
                 </a>
 
-                <div th:if="${selectedChild != null}" class="cloud-card block p-8 sm:p-10 rounded-[2.5rem] h-full group relative overflow-hidden text-left" id="openRecordModalBtn">
-                    <div class="absolute -right-10 -top-10 w-40 h-40 bg-green-100 rounded-full mix-blend-multiply opacity-50 group-hover:scale-150 transition-transform duration-700"></div>
-
-                    <div class="relative z-10">
-                        <div class="flex justify-between items-start mb-8">
-                            <div class="w-16 h-16 bg-green-50 text-green-600 rounded-2xl flex items-center justify-center shadow-sm">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="feather feather-mic"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
-                            </div>
-                            <span class="px-4 py-1.5 bg-green-100 text-green-600 rounded-full text-sm font-title font-bold">NEW</span>
-                        </div>
-
-                        <h2 class="text-3xl font-title text-gray-800 mb-3" th:text="|${selectedChild.name} 목소리 등록|">
-                            내 목소리 등록
-                        </h2>
-                        <p class="text-gray-500 text-lg leading-relaxed">
-                            나만의 특별한 목소리를 등록하고<br/>
-                            동화 속 주인공이 되어 보세요.
-                        </p>
-                    </div>
-                </div>
-
             </div>
         </div>
     </main>
@@ -297,14 +280,10 @@
             <button id="submitVoiceBtn" class="mt-6 px-8 py-4 bg-purple-600 text-white font-bold rounded-full hover:bg-purple-700 transition-transform transform hover:scale-105" disabled>
                 이 목소리로 등록하기
             </button>
-            <p id="recordError" class="text-red-500 text-sm mt-2 hidden">마이크 접근 권한을 허용해주세요.</p>
+    <p id="recordError" class="text-red-500 text-sm mt-2 hidden">마이크 접근 권한을 허용해주세요.</p>
             <p id="recordSuccess" class="text-green-600 text-sm mt-2 hidden">목소리 등록이 완료되었습니다!</p>
         </div>
     </div>
-</div>
-<!-- selectedChild.id를 JavaScript로 전달하기 위한 hidden input -->
-<div th:if="${selectedChild != null}">
-    <input type="hidden" id="selectedChildId" th:value="${selectedChild.id}"/>
 </div>
 
 <script>
@@ -337,7 +316,6 @@
     const recordingStatus = document.getElementById('recordingStatus');
     const recordError = document.getElementById('recordError');
     const recordSuccess = document.getElementById('recordSuccess');
-    const selectedChildIdInput = document.getElementById('selectedChildId');
     const previewAudio = document.getElementById('previewAudio');
 
     let mediaRecorder;
@@ -346,7 +324,7 @@
     let stream; // 마이크 스트림
 
     // 모달 열기
-    if (openRecordModalBtn) { // selectedChild가 있을 때만 버튼이 있으므로
+    if (openRecordModalBtn) {
         openRecordModalBtn.addEventListener('click', () => {
             recordingModal.classList.remove('hidden');
             resetRecordingState();
@@ -443,25 +421,14 @@
         closeRecordingModalBtn.disabled = true;
         recordError.classList.add('hidden');
 
-        const childId = selectedChildIdInput ? selectedChildIdInput.value : null;
-
-        if (!childId) {
-            alert('선택된 아이 정보가 없습니다.');
-            submitVoiceBtn.disabled = false;
-            submitVoiceBtn.innerText = "이 목소리로 등록하기";
-            startRecordingBtn.disabled = false;
-            closeRecordingModalBtn.disabled = false;
-            return;
-        }
-        
-        const voiceName = `ChildVoice_${childId}_${Date.now()}`; 
+        const voiceName = `UserVoice_${Date.now()}`; 
 
         const formData = new FormData();
         formData.append('name', voiceName);
         formData.append('files', audioBlob, 'voice_sample.webm');
 
         try {
-            const response = await fetch(`/api/voices/clone/${childId}`, {
+            const response = await fetch(`/api/voices/clone`, {
                 method: 'POST',
                 body: formData
             });

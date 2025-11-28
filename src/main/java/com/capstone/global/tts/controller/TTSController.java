@@ -1,10 +1,9 @@
 package com.capstone.global.tts.controller;
 
-import com.capstone.domain.child.entity.Child;
 import com.capstone.domain.story.dto.StoryPageResponseDto;
-import com.capstone.domain.story.entity.Story;
-import com.capstone.domain.story.repository.StoryRepository;
 import com.capstone.domain.story.service.StoryService;
+import com.capstone.domain.user.entity.User;
+import com.capstone.domain.user.repository.UserRepository;
 import com.capstone.global.tts.service.TTSService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,6 +11,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -27,16 +27,17 @@ public class TTSController {
 
     private final TTSService ttsService;
     private final StoryService storyService;
-    private final StoryRepository storyRepository;
+    private final UserRepository userRepository;
 
-    public TTSController(TTSService ttsService, StoryService storyService, StoryRepository storyRepository) {
+    public TTSController(TTSService ttsService, StoryService storyService, UserRepository userRepository) {
         this.ttsService = ttsService;
         this.storyService = storyService;
-        this.storyRepository = storyRepository;
+        this.userRepository = userRepository;
     }
 
     @GetMapping("/story/{storyId}/page/{pageNumber}")
     public ResponseEntity<byte[]> getStoryPageAudio(
+            @AuthenticationPrincipal User authenticatedUser,
             @PathVariable Long storyId,
             @PathVariable Integer pageNumber) {
 
@@ -51,17 +52,21 @@ public class TTSController {
                 storyText = pageDto.choices().isEmpty() ? "" : "어떤 선택을 할까?";
             }
 
-            // 2. Get Voice ID for the child associated with the story
-            Story story = storyRepository.findById(storyId)
-                    .orElseThrow(() -> new IllegalArgumentException("Invalid story Id:" + storyId));
-            Child child = story.getChild();
-            
-            if (child != null && StringUtils.hasText(child.getElevenlabsVoiceId())) {
-                voiceId = child.getElevenlabsVoiceId();
-                logger.info("Using custom voiceId: {} for child: {}", voiceId, child.getName());
+            // 2. Get Voice ID from the authenticated user by fetching the latest user data
+            if (authenticatedUser != null) {
+                User freshUser = userRepository.findByEmail(authenticatedUser.getUsername())
+                        .orElse(authenticatedUser); // Fallback to session user if not found
+                
+                if (StringUtils.hasText(freshUser.getElevenlabsVoiceId())) {
+                    voiceId = freshUser.getElevenlabsVoiceId();
+                    logger.info("Using custom voiceId: {} for user: {}", voiceId, freshUser.getUsername());
+                } else {
+                    voiceId = DEFAULT_ELEVENLABS_VOICE_ID;
+                    logger.info("Custom voiceId not found for user: {}. Using default voiceId: {}", freshUser.getUsername(), voiceId);
+                }
             } else {
-                voiceId = DEFAULT_ELEVENLABS_VOICE_ID;
-                logger.info("Custom voiceId not found for child. Using default voiceId: {}", voiceId);
+                 voiceId = DEFAULT_ELEVENLABS_VOICE_ID;
+                 logger.info("User not authenticated. Using default voiceId: {}", voiceId);
             }
 
         } catch (IllegalArgumentException e) {

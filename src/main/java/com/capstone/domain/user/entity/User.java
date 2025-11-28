@@ -29,9 +29,16 @@ public class User implements UserDetails {
 	@Column(nullable = false)
 	private String password;
 
+	@Column(name = "elevenlabs_voice_id")
+	private String elevenlabsVoiceId;
+
 	public User(String email, String password) {
 		this.email = email;
 		this.password = password;
+	}
+
+	public void setElevenlabsVoiceId(String elevenlabsVoiceId) {
+		this.elevenlabsVoiceId = elevenlabsVoiceId;
 	}
 
 	@Override
