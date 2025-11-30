@@ -225,6 +225,7 @@
                         </div>
                         <div th:if="${!page.completion}">
                             <a th:href="@{/story/{storyId}/page/{nextStep}(storyId=${page.storyId}, nextStep=${page.step + 1})}"
+                               id="nextButton"
                                class="inline-block px-6 py-3 bg-purple-600 text-white font-bold rounded-full hover:bg-purple-700 transition-transform transform hover:scale-105">
                                 다음으로 &rarr;
                             </a>
@@ -243,36 +244,72 @@
     </div>
 </div> <!-- mobile-container 끝 -->
 
-<script>
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    const storyId = /*[[${page.storyId}]]*/ 0;
+    const currentStep = /*[[${page.step}]]*/ 0;
+    const hasChoice = /*[[${page.hasChoice}]]*/ false;
+    const isCompletion = /*[[${page.completion}]]*/ false;
+    /*]]>*/
+
     let isSubmitting = false;
 
     function showLoading() {
-        // 중복 클릭 방지
-        if (isSubmitting) {
-            return false;
-        }
-
+        if (isSubmitting) return false;
         isSubmitting = true;
         document.getElementById('loadingOverlay').classList.add('active');
-
-        // 모든 버튼 비활성화
         const buttons = document.querySelectorAll('button[type="submit"]');
-        buttons.forEach(button => {
-            button.disabled = true;
-        });
-
+        buttons.forEach(button => { button.disabled = true; });
         return true;
     }
 
-    // 페이지 로드 시 로딩 상태 초기화
     window.addEventListener('pageshow', function(event) {
         isSubmitting = false;
-        document.getElementById('loadingOverlay').classList.remove('active');
-
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        if (loadingOverlay) loadingOverlay.classList.remove('active');
+        
         const buttons = document.querySelectorAll('button[type="submit"]');
-        buttons.forEach(button => {
-            button.disabled = false;
-        });
+        buttons.forEach(button => { button.disabled = false; });
+    });
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const nextButton = document.getElementById('nextButton');
+        
+        if (!hasChoice && !isCompletion && nextButton) {
+            // 1. 다음 버튼 초기 비활성화
+            nextButton.classList.add('opacity-50', 'cursor-not-allowed');
+            const originalHref = nextButton.href;
+            nextButton.removeAttribute('href');
+
+            const nextStep = currentStep + 1;
+
+            // 2. 다음 페이지 생성 상태 폴링 시작
+            const pollInterval = setInterval(() => {
+                fetch(`/story/${storyId}/page/${nextStep}/status`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.ready) {
+                            // 3. 페이지 생성 완료 시 버튼 활성화
+                            clearInterval(pollInterval);
+                            nextButton.classList.remove('opacity-50', 'cursor-not-allowed');
+                            nextButton.setAttribute('href', originalHref);
+                            console.log(`페이지 ${nextStep} 준비 완료. 다음 버튼 활성화.`);
+                        } else {
+                            console.log(`페이지 ${nextStep} 생성 대기 중...`);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('페이지 상태 확인 중 오류 발생:', error);
+                        clearInterval(pollInterval); // 오류 발생 시 폴링 중단
+                        // 오류 상황을 사용자에게 알리는 로직 추가 가능
+                    });
+            }, 2000); // 2초마다 확인
+        }
     });
 </script>
 

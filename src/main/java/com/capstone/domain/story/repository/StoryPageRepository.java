@@ -9,5 +9,8 @@ import java.util.Optional;
 
 public interface StoryPageRepository extends JpaRepository<StoryPage, Long> {
     Optional<StoryPage> findByStoryAndStep(Story story, Integer step);
+    Optional<StoryPage> findFirstByStoryAndStepOrderByIdAsc(Story story, Integer step);
     List<StoryPage> findByStoryOrderByStepAsc(Story story);
+
+    void deleteByStoryAndStepGreaterThan(Story story, int step);
 }

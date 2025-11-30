@@ -7,6 +7,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
+@Table(uniqueConstraints = {
+	@UniqueConstraint(columnNames = {"story_id", "step"})
+})
 @Getter
 @Builder
 @NoArgsConstructor
@@ -39,4 +42,11 @@ public class StoryPage {
 
 	@Column(nullable = false) //분기유무
 	private Boolean hasChoice;
+
+	/**
+	 * 이미지 URL 설정 (비동기 이미지 생성 후 업데이트용)
+	 */
+	public void setImageUrl(String imageUrl) {
+		this.imageUrl = imageUrl;
+	}
 }

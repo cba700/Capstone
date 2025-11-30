@@ -11,5 +11,6 @@ import java.util.Optional;
 public interface StorySelectLogRepository extends JpaRepository<StorySelectLog, Long> {
     List<StorySelectLog> findByStoryOrderByStepAsc(Story story);
     long countByStory(Story story);
-    Optional<StorySelectLog> findByPage(StoryPage page);
+    Optional<StorySelectLog> findFirstByPageOrderByIdDesc(StoryPage page);
+    boolean existsByStoryAndStep(Story story, int step);
 }

@@ -39,4 +39,14 @@ public class StoryController {
         Story newStory = storyService.startJobStory(previousStoryId, jobName, themeWorld);
         return "redirect:/story/" + newStory.getId() + "/page/1";
     }
+
+    /**
+     * 특정 페이지가 생성 완료되었는지 확인 (AJAX 폴링용)
+     */
+    @GetMapping("/{storyId}/page/{step}/status")
+    @ResponseBody
+    public java.util.Map<String, Boolean> checkPageStatus(@PathVariable Long storyId, @PathVariable Integer step) {
+        boolean ready = storyService.isPageReady(storyId, step);
+        return java.util.Map.of("ready", ready);
+    }
 }

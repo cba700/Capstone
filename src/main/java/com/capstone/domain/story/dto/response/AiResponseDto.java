@@ -3,11 +3,16 @@ package com.capstone.domain.story.dto.response;
 import lombok.Builder;
 import lombok.Getter;
 
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
+
 import java.util.Collections;
 import java.util.List;
 
 @Getter
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class AiResponseDto {
     private List<String> narrationSections; // 이야기 진행 서술 문단 (최대 3문장 x N)
     private String problem;   // 새로운 문제 상황 또는 미션
@@ -20,6 +25,8 @@ public class AiResponseDto {
 
     @Getter
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class ChoiceDto {
         private String choiceKey; // A, B, C 등 분기 식별자
         private String choiceText; // 선택지 텍스트 (예: "첫 번째 길로 간다...")
