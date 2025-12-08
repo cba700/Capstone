@@ -132,12 +132,14 @@
 </head>
 <body class="min-h-screen bg-gradient-to-br from-purple-100 via-pink-50 to-blue-100 p-4">
 
-<!-- 로딩 오버레이 -->
 <div id="loadingOverlay" class="loading-overlay">
-    <div class="text-center">
-        <!-- 여기에 이미지 URL을 넣으세요 -->
-        <img src="/images/toki.gif" alt="로딩 중..." class="loading-spinner">
-        <p class="text-white text-xl font-semibold mt-4">이야기를 불러오는 중...</p>
+    <div class="bg-white/90 p-10 rounded-[3rem] shadow-2xl text-center border-4 border-purple-100">
+        <div class="w-64 h-64 mx-auto mb-4 flex items-center justify-center">
+            <img id="loadingImage" src="" alt="로딩중" class="max-w-full max-h-full object-contain rounded-2xl">
+        </div>
+        <p id="loadingImageText" class="text-2xl font-title text-purple-500 h-8 mb-2"></p>
+        <h3 class="text-3xl font-title text-purple-600 mb-2 bounce-text">이야기를 만들고 있어요!</h3>
+        <p class="text-gray-500 font-medium">잠시만 기다려주세요... ✨</p>
     </div>
 </div>
 
@@ -250,51 +252,35 @@
     const currentStep = /*[[${page.step}]]*/ 0;
     const hasChoice = /*[[${page.hasChoice}]]*/ false;
     const isCompletion = /*[[${page.completion}]]*/ false;
+
+    // 백엔드에서 주입된 직업 이미지 경로를 직접 사용
+    let allLoadingImages = /*[[${jobImagePaths}]]*/ [];
+    if (!allLoadingImages || allLoadingImages.length === 0) {
+        allLoadingImages = ['/images/toki.gif'];
+        console.log("직업 이미지를 찾을 수 없어 기본 로딩 이미지를 사용합니다.");
+    }
     /*]]>*/
 
     let isSubmitting = false;
-
-    function showLoading() {
-        if (isSubmitting) return false;
-        isSubmitting = true;
-        document.getElementById('loadingOverlay').classList.add('active');
-        const buttons = document.querySelectorAll('button[type="submit"]');
-        buttons.forEach(button => { button.disabled = true; });
-        return true;
-    }
-
-    window.addEventListener('pageshow', function(event) {
-        isSubmitting = false;
-        const loadingOverlay = document.getElementById('loadingOverlay');
-        if (loadingOverlay) loadingOverlay.classList.remove('active');
-        
-        const buttons = document.querySelectorAll('button[type="submit"]');
-        buttons.forEach(button => { button.disabled = false; });
-    });
+    let loadingIntervalId = null;
 
     document.addEventListener('DOMContentLoaded', function() {
         const nextButton = document.getElementById('nextButton');
         
         if (!hasChoice && !isCompletion && nextButton) {
-            // 1. 다음 버튼 초기 비활성화
             nextButton.classList.add('opacity-50', 'cursor-not-allowed');
             const originalHref = nextButton.href;
             nextButton.removeAttribute('href');
 
             const nextStep = currentStep + 1;
-
-            // 2. 다음 페이지 생성 상태 폴링 시작
             const pollInterval = setInterval(() => {
                 fetch(`/story/${storyId}/page/${nextStep}/status`)
                     .then(response => {
-                        if (!response.ok) {
-                            throw new Error('Network response was not ok');
-                        }
+                        if (!response.ok) throw new Error('Network response was not ok');
                         return response.json();
                     })
                     .then(data => {
                         if (data.ready) {
-                            // 3. 페이지 생성 완료 시 버튼 활성화
                             clearInterval(pollInterval);
                             nextButton.classList.remove('opacity-50', 'cursor-not-allowed');
                             nextButton.setAttribute('href', originalHref);
@@ -305,11 +291,54 @@
                     })
                     .catch(error => {
                         console.error('페이지 상태 확인 중 오류 발생:', error);
-                        clearInterval(pollInterval); // 오류 발생 시 폴링 중단
-                        // 오류 상황을 사용자에게 알리는 로직 추가 가능
+                        clearInterval(pollInterval);
                     });
-            }, 2000); // 2초마다 확인
+            }, 2000);
         }
+    });
+
+    function showLoading() {
+        if (isSubmitting) return false;
+        isSubmitting = true;
+        document.getElementById('loadingOverlay').classList.add('active');
+
+        const loadingImageEl = document.getElementById('loadingImage');
+        const loadingImageTextEl = document.getElementById('loadingImageText');
+
+        if (loadingImageEl && allLoadingImages.length > 0) {
+             const updateImage = () => {
+                const newImageSrc = allLoadingImages[Math.floor(Math.random() * allLoadingImages.length)];
+                loadingImageEl.src = newImageSrc;
+                
+                const filename = newImageSrc.split('/').pop();
+                const jobName = filename.substring(0, filename.lastIndexOf('.'));
+                
+                if (newImageSrc !== '/images/toki.gif') {
+                    loadingImageTextEl.textContent = jobName;
+                } else {
+                    loadingImageTextEl.textContent = '';
+                }
+            };
+            
+            updateImage();
+            loadingIntervalId = setInterval(updateImage, 1000);
+        }
+        return true;
+    }
+
+    window.addEventListener('pageshow', function(event) {
+        if (loadingIntervalId) {
+            clearInterval(loadingIntervalId);
+            loadingIntervalId = null;
+        }
+        isSubmitting = false;
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        if (loadingOverlay) loadingOverlay.classList.remove('active');
+        
+        const buttons = document.querySelectorAll('button');
+        buttons.forEach(button => {
+            button.disabled = false;
+        });
     });
 </script>
 

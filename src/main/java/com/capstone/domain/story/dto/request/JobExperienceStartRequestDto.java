@@ -18,4 +18,5 @@ public class JobExperienceStartRequestDto {
     private String friendName;
     private String pet;
     private String personality;
+    private java.util.List<String> interests;
 }

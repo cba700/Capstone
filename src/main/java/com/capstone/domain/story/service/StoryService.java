@@ -53,7 +53,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class StoryService {
 
-	private static final int STORY_CHOICE_LIMIT = 3;
+	private static final int STORY_CHOICE_LIMIT = 2;
 	private static final List<String> JOB_FALLBACKS = List.of("소방관", "교사", "과학자(실험실 연구원)");
 	private static final List<String> DEFAULT_TRAIT_TAGS = List.of("#용기", "#상상력", "#협동심", "#친절", "#탐구심");
 	private static final int TRAITS_PER_CHOICE = 3;
@@ -152,12 +152,14 @@ public class StoryService {
 				if (choiceCount < STORY_CHOICE_LIMIT) {
 					List<List<String>> nextTraitTagGroups = prepareTraitCandidates(selectedTraits, traitSnapshot);
 					log.info("[Story {}] Suggested tag groups for next step {}: {}", story.getId(), choiceCount + 1, nextTraitTagGroups);
+					List<String> interests = buildInterests(story.getTheme());
 					StoryNextStepRequestDto requestDto = StoryNextStepRequestDto.builder()
 						.childName(story.getChild().getName())
 						.childGender(story.getChild().getGender().toString())
 						.previousChoice(choice.getLabel())
 						.currentStep(Math.min((int) choiceCount + 1, STORY_CHOICE_LIMIT))
 						.choiceTraitCandidates(nextTraitTagGroups)
+						.interests(interests)
 						.build();
 					AiResponseDto aiResponse = storyGenerator.generateNextStep(requestDto);
 					if (isJobStory) {
@@ -206,10 +208,15 @@ public class StoryService {
 		String coreTrait = findCoreTrait(previousStory);
 		String resolvedThemeWorld = StringUtils.hasText(themeWorld) ? themeWorld.trim() : job.getName() + " 나라";
 
+		Theme theme = previousStory.getTheme();
+		List<String> interests = buildInterests(theme);
+
 		JobExperienceStartRequestDto requestDto = JobExperienceStartRequestDto.builder()
 			.childName(child.getName()).childGender(child.getGender().toString())
 			.selectedJob(job.getName()).themeWorld(resolvedThemeWorld)
-			.coreTrait(coreTrait).build();
+			.coreTrait(coreTrait)
+			.interests(interests)
+			.build();
 
 		AiResponseDto aiResponse = storyGenerator.generateJobExperienceStart(requestDto);
 
@@ -398,7 +405,7 @@ public class StoryService {
 							.step(firstNewStep)
 							.pageType(PageType.PROGRESS)
 							.narration(firstSection)
-							.imagePrompt(aiResponse.getImagePrompt())
+							.imagePrompt(firstSection) // Use page-specific text as prompt
 							.hasChoice(false)
 							.build();
 
@@ -406,10 +413,23 @@ public class StoryService {
 
 						// 첫 페이지 이미지 생성 (동기)
 						try {
-							String imageUrl = storyImageService.generateAndSaveImage(
-								aiResponse.getImagePrompt(),
+							// 이미지 생성을 위한 참조 이미지 경로 리스트 생성
+						List<String> referenceImagePaths = new java.util.ArrayList<>();
+						// 1. 캐릭터 이미지 추가
+						referenceImagePaths.add("static/images/sample/" + (story.getChild().getGender() == com.capstone.domain.child.entity.Child.Gender.BOY ? "남자.png" : "여자.png"));
+						// 2. 테마 이미지 추가
+						referenceImagePaths.add("static/images/themes/" + story.getTheme().getId() + ".jpg");
+						// 3. 직업 스토리인 경우 직업 이미지 추가
+						if (story.getSelectedJob() != null) {
+							referenceImagePaths.add("static/images/jobs/" + story.getSelectedJob().getName() + ".png");
+						}
+
+						String imageUrl = storyImageService.generateAndSaveImage(
+								firstSection, // Use page-specific text as prompt
 								story.getId(),
-								savedPage.getStep()
+								savedPage.getStep(),
+								referenceImagePaths,
+								story.getStatus()
 							);
 							if (StringUtils.hasText(imageUrl)) {
 								savedPage.setImageUrl(imageUrl);
@@ -432,11 +452,12 @@ public class StoryService {
 		// 나머지 섹션들을 템플릿으로 저장 (이 부분은 잠금 밖에서 수행)
 		int templateStep = firstNewStep + 1;
 		for (int i = 1; i < narrationSections.size(); i++) {
+			String narrationSection = narrationSections.get(i);
 			StoryPageTemplate template = StoryPageTemplate.builder()
 				.story(story)
 				.step(templateStep++)
-				.narration(narrationSections.get(i))
-				.imagePrompt(aiResponse.getImagePrompt())
+				.narration(narrationSection)
+				.imagePrompt(narrationSection) // Use page-specific text as prompt
 				.pageType(PageType.PROGRESS)
 				.hasChoice(false)
 				.isGenerated(false)
@@ -456,7 +477,7 @@ public class StoryService {
 				.story(story)
 				.step(templateStep)
 				.narration(problemNarration)
-				.imagePrompt(aiResponse.getImagePrompt())
+				.imagePrompt(problemNarration) // Use problem narration as prompt
 				.pageType(hasChoices ? PageType.CHOICE : PageType.PROGRESS)
 				.hasChoice(hasChoices)
 				.choicesJson(choicesJson)
@@ -548,10 +569,23 @@ public class StoryService {
 
 		// 이미지 생성
 		try {
-			String imageUrl = storyImageService.generateAndSaveImage(
+			// 이미지 생성을 위한 참조 이미지 경로 리스트 생성
+		List<String> referenceImagePaths = new java.util.ArrayList<>();
+		// 1. 캐릭터 이미지 추가
+		referenceImagePaths.add("static/images/sample/" + (story.getChild().getGender() == com.capstone.domain.child.entity.Child.Gender.BOY ? "남자.png" : "여자.png"));
+		// 2. 테마 이미지 추가
+		referenceImagePaths.add("static/images/themes/" + story.getTheme().getId() + ".jpg");
+		// 3. 직업 스토리인 경우 직업 이미지 추가
+		if (story.getSelectedJob() != null) {
+			referenceImagePaths.add("static/images/jobs/" + story.getSelectedJob().getName() + ".png");
+		}
+
+		String imageUrl = storyImageService.generateAndSaveImage(
 				template.getImagePrompt(),
 				story.getId(),
-				savedPage.getStep()
+				savedPage.getStep(),
+				referenceImagePaths,
+				story.getStatus()
 			);
 			if (StringUtils.hasText(imageUrl)) {
 				savedPage.setImageUrl(imageUrl);

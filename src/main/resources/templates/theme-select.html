@@ -95,10 +95,10 @@
 
 <div id="loadingOverlay" class="loading-overlay">
     <div class="bg-white/90 p-10 rounded-[3rem] shadow-2xl text-center border-4 border-purple-100">
-        <div class="w-32 h-32 mx-auto mb-6 rounded-full overflow-hidden border-4 border-purple-200">
-            <img src="/images/toki.gif" alt="로딩중" class="w-full h-full object-cover">
+        <div class="w-64 h-64 mx-auto mb-4 flex items-center justify-center">
+            <img id="loadingImage" src="" alt="로딩중" class="max-w-full max-h-full object-contain rounded-2xl">
         </div>
-
+        <p id="loadingImageText" class="text-2xl font-title text-purple-500 h-8 mb-2"></p>
         <h3 class="text-3xl font-title text-purple-600 mb-2 bounce-text">이야기를 만들고 있어요!</h3>
         <p class="text-gray-500 font-medium">잠시만 기다려주세요... ✨</p>
     </div>
@@ -174,8 +174,17 @@
     </div>
 </div>
 
-<script>
+<script th:inline="javascript">
     let isSubmitting = false;
+    let loadingIntervalId = null;
+    
+    // 백엔드에서 주입된 직업 이미지 경로를 직접 사용
+    let allLoadingImages = /*[[${jobImagePaths}]]*/ [];
+    if (!allLoadingImages || allLoadingImages.length === 0) {
+        // 이미지가 없을 경우, 기본 토키 이미지로 대체
+        allLoadingImages = ['/images/toki.gif'];
+        console.log("직업 이미지를 찾을 수 없어 기본 로딩 이미지를 사용합니다.");
+    }
 
     function showLoading() {
         if (isSubmitting) {
@@ -183,12 +192,37 @@
         }
         isSubmitting = true;
         document.getElementById('loadingOverlay').classList.add('active');
-        // 폼 제출을 위해 true 반환
+
+        const loadingImageEl = document.getElementById('loadingImage');
+        const loadingImageTextEl = document.getElementById('loadingImageText');
+
+        if (loadingImageEl && allLoadingImages.length > 0) {
+            const updateImage = () => {
+                const newImageSrc = allLoadingImages[Math.floor(Math.random() * allLoadingImages.length)];
+                loadingImageEl.src = newImageSrc;
+                
+                const filename = newImageSrc.split('/').pop();
+                const jobName = filename.substring(0, filename.lastIndexOf('.'));
+                
+                if (newImageSrc !== '/images/toki.gif') {
+                    loadingImageTextEl.textContent = jobName;
+                } else {
+                    loadingImageTextEl.textContent = '';
+                }
+            };
+            
+            updateImage();
+            loadingIntervalId = setInterval(updateImage, 1000);
+        }
         return true;
     }
 
     // 페이지 복원 시 (뒤로가기 등) 로딩 화면 해제
     window.addEventListener('pageshow', function(event) {
+        if (loadingIntervalId) {
+            clearInterval(loadingIntervalId);
+            loadingIntervalId = null;
+        }
         if (event.persisted || (window.performance && window.performance.navigation.type === 2)) {
              isSubmitting = false;
              document.getElementById('loadingOverlay').classList.remove('active');

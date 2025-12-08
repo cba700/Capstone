@@ -20,6 +20,7 @@ public class StoryNextStepRequestDto {
     private String friendName;
     private String pet;
     private String personality;
+    private List<String> interests;
 
     // 새로운 선택지에 부여할 태그 후보 (선택지 수 만큼 각 3개씩 제공)
     private List<List<String>> choiceTraitCandidates;

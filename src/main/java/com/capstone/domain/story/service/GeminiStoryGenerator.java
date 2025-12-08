@@ -36,7 +36,7 @@ import java.util.regex.Pattern;
 public class GeminiStoryGenerator implements StoryGenerator {
 
     private static final String BASE_PREAMBLE = String.join("\n",
-            "당신은 5~7세 아이에게 직접 이야기를 들려주는 친근한 토끼 '토키'입니다.",
+            "당신은 5~7세 아이에게 직접 이야기를 들려주는 친근한 가이드 '토리'입니다.",
             "절대적인 안전 원칙을 지키고, 폭력성·공포·선정성·비윤리적 표현을 절대 사용하지 마세요.",
             "모든 문단은 최대 3문장으로 유지하고, 아이 눈높이의 다정한 구어체(~했단다, ~했어 등)를 사용하세요.",
             "밝고 긍정적인 단어만 사용하며, 모든 출력은 한국어입니다.");
@@ -136,7 +136,7 @@ public class GeminiStoryGenerator implements StoryGenerator {
         appendChoiceTraitCandidates(prompt, dto.getChoiceTraitCandidatesOrDefault());
 
         prompt.append("\n## 출력 지침\n");
-        prompt.append("1. 토키의 말투로 1~2개의 짧은 문단을 작성해 모험 배경과 첫 문제 상황을 설명합니다.\n");
+        prompt.append("1. 토리의 말투로 1~2개의 짧은 문단을 작성해 모험 배경과 첫 문제 상황을 설명합니다.\n");
         prompt.append("2. 이어서 '문제 상황' 표기 아래에 핵심 상황을 다시 한 번 간단히 요약합니다.\n");
         prompt.append("3. '선택지' 표기 아래에 A, B, C 선택지를 제공하고 각각 1~2개의 성향 태그(#용기 등)를 괄호 안에 표기합니다.\n");
         prompt.append("4. 태그는 서버가 전달한 후보에서 골라 사용하고, 그대로 JSON에도 반영합니다.\n");
@@ -159,6 +159,9 @@ public class GeminiStoryGenerator implements StoryGenerator {
         prompt.append("- 아이 성별: ").append(dto.getChildGender()).append('\n');
         prompt.append("- 이전 선택: ").append(dto.getPreviousChoice()).append('\n');
         prompt.append("- 현재 선택 횟수: ").append(dto.getCurrentStep()).append('\n');
+        if (dto.getInterests() != null && !dto.getInterests().isEmpty()) {
+            prompt.append("- 이야기 테마: ").append(String.join(", ", dto.getInterests())).append('\n');
+        }
         appendIfPresent(prompt, "- 친구 이름", dto.getFriendName());
         appendIfPresent(prompt, "- 반려동물", dto.getPet());
         appendIfPresent(prompt, "- 성향", dto.getPersonality());
@@ -203,7 +206,7 @@ public class GeminiStoryGenerator implements StoryGenerator {
 
         prompt.append("\n## 출력 지침\n");
         prompt.append("1. 마지막 선택의 결과와 모두가 행복해지는 결말을 2~3개의 짧은 문단으로 서술합니다.\n");
-        prompt.append("2. 토키가 아이를 칭찬하며 자연스럽게 다음 모험으로 가는 갈림길을 소개합니다.\n");
+        prompt.append("2. 토리가 아이를 칭찬하며 자연스럽게 다음 모험으로 가는 갈림길을 소개합니다.\n");
         prompt.append("3. A/B/C 선택지는 각각 추천 직업과 연결된 테마 월드를 소개해야 합니다.\n");
         prompt.append("4. 이야기 본문 뒤에 JSON 블록을 제공하여, \"problem\" 필드에는 다음 모험 안내 문단을 넣고, \"choices\"에는 추천 직업 3개를 활용한 선택지를 채웁니다. 각 choice 객체에는 반드시 jobName과 themeWorld 속성을 채워 직업명과 테마 월드를 명시하세요.\n");
         prompt.append(JSON_SCHEMA_GUIDE);
@@ -224,12 +227,15 @@ public class GeminiStoryGenerator implements StoryGenerator {
         prompt.append("- 선택한 직업: ").append(dto.getSelectedJob()).append('\n');
         prompt.append("- 선택한 테마 월드: ").append(dto.getThemeWorld()).append('\n');
         prompt.append("- 핵심 성향: ").append(dto.getCoreTrait()).append('\n');
+        if (dto.getInterests() != null && !dto.getInterests().isEmpty()) {
+            prompt.append("- 이전 모험 테마: ").append(String.join(", ", dto.getInterests())).append('\n');
+        }
         appendIfPresent(prompt, "- 친구 이름", dto.getFriendName());
         appendIfPresent(prompt, "- 반려동물", dto.getPet());
         appendIfPresent(prompt, "- 성향", dto.getPersonality());
 
         prompt.append("\n## 출력 지침\n");
-        prompt.append("1. \"직업 체험 시작: [직업]\" 제목과 함께 토키가 테마 월드를 소개합니다.\n");
+        prompt.append("1. 이전 모험 테마와 선택한 직업을 자연스럽게 융합하여 '직업 체험 시작: [직업]' 제목과 함께 토리가 테마 월드를 소개합니다.\n");
         prompt.append("2. 짧은 문단으로 아이가 직업을 수행하게 된 배경을 설명합니다.\n");
         prompt.append("3. '첫 번째 미션 (문제 상황)'을 제시하고, 세 가지 선택지를 태그와 함께 제공합니다.\n");
         prompt.append("4. 마지막에 JSON 스키마를 사용하여 본문 정보를 구조화합니다.\n");
@@ -253,7 +259,7 @@ public class GeminiStoryGenerator implements StoryGenerator {
         appendIfPresent(prompt, "- 가장 많이 누적된 성향", dto.getMostFrequentTrait());
 
         prompt.append("\n## 출력 지침\n");
-        prompt.append("1. 토키가 축하 인사를 건네는 한 문단을 작성합니다.\n");
+        prompt.append("1. 토리가 축하 인사를 건네는 한 문단을 작성합니다.\n");
         prompt.append("2. 이어서 강조 표시된 최종 제목을 제시합니다.\n");
         prompt.append("3. 마지막에는 아래 JSON을 제공해 기계 판독이 가능하도록 합니다.\n");
         prompt.append("```json\n{\n  \"title\": \"완성된 제목\",\n  \"reason\": \"제목 선정 이유 한 문장\"\n}\n```\n");

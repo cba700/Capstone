@@ -3,10 +3,13 @@ package com.capstone.domain.story.controller;
 import com.capstone.domain.story.dto.StoryPageResponseDto;
 import com.capstone.domain.story.entity.Story;
 import com.capstone.domain.story.service.StoryService;
+import com.capstone.global.resource.service.ResourceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @Controller
 @RequiredArgsConstructor
@@ -14,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 public class StoryController {
 
     private final StoryService storyService;
+    private final ResourceService resourceService;
 
     @PostMapping("/create")
     public String createStory(@RequestParam Long childId, @RequestParam Long themeId) {
@@ -24,7 +28,9 @@ public class StoryController {
     @GetMapping("/{storyId}/page/{step}")
     public String showPage(@PathVariable Long storyId, @PathVariable Integer step, Model model) {
         StoryPageResponseDto pageDto = storyService.getPage(storyId, step);
+        List<String> jobImagePaths = resourceService.getJobImagePaths();
         model.addAttribute("page", pageDto);
+        model.addAttribute("jobImagePaths", jobImagePaths);
         return "story-play";
     }
 
