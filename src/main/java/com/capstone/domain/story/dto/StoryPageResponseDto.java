@@ -19,7 +19,8 @@ public record StoryPageResponseDto(
         String storyTitle,
         boolean completion,
         boolean hasNext,
-        ChoiceResponseDto selectedChoice
+        ChoiceResponseDto selectedChoice,
+        StoryStatus status
 ) {
     public static StoryPageResponseDto from(StoryPage page, List<ChoiceResponseDto> choices) {
         return StoryPageResponseDto.builder()
@@ -34,6 +35,7 @@ public record StoryPageResponseDto(
                 .completion(!page.getHasChoice() && page.getStory().getStatus() == StoryStatus.COMPLETED)
                 .hasNext(false) // 기본값, 컨트롤러에서 별도 설정
                 .selectedChoice(null) // 기본값, 서비스에서 별도 설정
+                .status(page.getStory().getStatus())
                 .build();
     }
     
@@ -50,6 +52,7 @@ public record StoryPageResponseDto(
                 .completion(!page.getHasChoice() && page.getStory().getStatus() == StoryStatus.COMPLETED)
                 .hasNext(hasNext)
                 .selectedChoice(null) // 기본값, 서비스에서 별도 설정
+                .status(page.getStory().getStatus())
                 .build();
     }
 }

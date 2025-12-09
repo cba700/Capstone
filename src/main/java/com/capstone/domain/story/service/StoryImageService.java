@@ -48,14 +48,14 @@ public class StoryImageService {
     @Value("${story.image.base-url:/story-images}")
     private String imageBaseUrl;
 
-    public String generateAndSaveImage(String imagePrompt, Long storyId, Integer step, List<String> referenceImagePaths, StoryStatus status) {
+    public String generateAndSaveImage(String imagePrompt, Long storyId, Integer step, List<String> referenceImagePaths, StoryStatus status, String childName) {
         if (!StringUtils.hasText(imagePrompt)) {
             log.warn("Empty image prompt for story {} step {}", storyId, step);
             return null;
         }
 
         try {
-            String enhancedPrompt = buildEnhancedPrompt(imagePrompt, status);
+            String enhancedPrompt = buildEnhancedPrompt(imagePrompt, status, childName);
             log.info("Generating image for story {} step {} with prompt: {}", storyId, step, enhancedPrompt);
 
             String imageData = generateImageWithGemini(enhancedPrompt, referenceImagePaths);
@@ -80,22 +80,36 @@ public class StoryImageService {
         }
     }
 
-    private String buildEnhancedPrompt(String basePrompt, StoryStatus status) {
-        String sceneInstruction = "Your primary and most important task is to accurately illustrate the scene described in the 'Scene description'. All other instructions are secondary to this. Scene description: " + basePrompt;
+    private String buildEnhancedPrompt(String basePrompt, StoryStatus status, String childName) {
+        String givenName = childName;
+        // 1. 아이 이름 처리: 3글자 이름(성이 포함된 이름)인 경우, 성을 제외한 이름만 사용하도록 프롬프트 수정
+        if (StringUtils.hasText(childName) && childName.length() == 3) {
+            givenName = childName.substring(1); // 이름의 뒤 두 글자
+            basePrompt = basePrompt.replace(childName, givenName); // 기본 프롬프트에서도 전체 이름 -> 이름으로 교체
+        }
+        
+        String nameInstruction = String.format("The main character's name is '%s'. Refer to the character only by their given name, like '%s', not their full name. Do not use their family name. If the story refers to the character by their full name, replace it with '%s'.", givenName, givenName, givenName);
 
+        // 2. 장면 묘사 지시 강화
+        String sceneInstruction = "Your primary and most important task is to accurately illustrate the main subject and action from the 'Scene description'. All other instructions are secondary. For example, if the text says 'A dinosaur is crying', the image MUST show a crying dinosaur, not a person. Scene description: " + basePrompt;
+
+        // 3. 스타일 지시 강화
         String styleInstruction;
         if (status == StoryStatus.JOB_STARTED || status == StoryStatus.IN_JOB_PROGRESS) {
             // Part 2 (with job)
-            styleInstruction = "For the style, you MUST combine three reference images: 1. The main character's appearance, 2. The theme's art style, and 3. The job's visual elements. Draw the character exactly as shown.";
+            styleInstruction = "For the visual style, you MUST faithfully combine three reference images: 1. The main character's exact appearance, 2. The theme's setting, background, and non-human characters, and 3. The job's key visual elements. Draw the main character exactly as depicted in their reference image.";
         } else {
             // Part 1 (no job)
-            styleInstruction = "For the style, you MUST combine two reference images: 1. The main character's appearance, and 2. The theme's art style. Draw the character exactly as shown.";
+            styleInstruction = "For the visual style, you MUST faithfully combine two reference images: 1. The main character's exact appearance, and 2. The theme's setting, background, and non-human characters (e.g., if the theme is 'dinosaurs', dinosaurs should appear). Draw the main character exactly as depicted in their reference image.";
         }
 
+        // 4. 부정 프롬프트 (기존과 동일)
         String negativePrompt = "Critical rule: Unconditionally DO NOT draw any animals. The name '토리' (Tori) is a proper name, not an animal. Also, DO NOT include any text, speech bubbles, or captions in the image, whether in English or Korean.";
+        
+        // 5. 최종 스타일 요구사항 (기존과 동일)
         String finalStyleRequirements = "Final style requirements: children's book illustration, cute, colorful, friendly cartoon, bright colors, no scary elements, high quality.";
 
-        return String.join(" ", sceneInstruction, styleInstruction, negativePrompt, finalStyleRequirements);
+        return String.join(" ", nameInstruction, sceneInstruction, styleInstruction, negativePrompt, finalStyleRequirements);
     }
 
     private String generateImageWithGemini(String prompt, List<String> referenceImagePaths) {

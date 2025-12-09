@@ -53,7 +53,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class StoryService {
 
-	private static final int STORY_CHOICE_LIMIT = 2;
+	private static final int STORY_CHOICE_LIMIT = 1;
 	private static final List<String> JOB_FALLBACKS = List.of("소방관", "교사", "과학자(실험실 연구원)");
 	private static final List<String> DEFAULT_TRAIT_TAGS = List.of("#용기", "#상상력", "#협동심", "#친절", "#탐구심");
 	private static final int TRAITS_PER_CHOICE = 3;
@@ -111,13 +111,18 @@ public class StoryService {
 		Object lock = choiceProcessingLocks.computeIfAbsent(lockKey, k -> new Object());
 
 		try {
-			synchronized (lock) {
-				Story story = storyRepository.findById(storyId)
-					.orElseThrow(() -> new IllegalArgumentException("Invalid story Id:" + storyId));
-
-				// 중복 요청 방지: 이미 해당 스텝에 대한 선택 기록이 있는지 확인
-				if (storySelectLogRepository.existsByStoryAndStep(story, story.getCurrentStep())) {
-					log.warn("[스토리 {}] 중복 선택 요청: Step {} 에 대한 선택이 이미 처리되었습니다. 현재 페이지를 반환합니다.", storyId, story.getCurrentStep());
+			            synchronized (lock) {
+			                Story story = storyRepository.findById(storyId)
+			                    .orElseThrow(() -> new IllegalArgumentException("Invalid story Id:" + storyId));
+			
+			                // 방어 코드 추가: 완료된 스토리에서는 더 이상 선택을 처리하지 않음
+			                if (story.getStatus() == StoryStatus.COMPLETED) {
+			                    log.warn("[스토리 {}] 완료된 스토리에서 중복 선택 시도. 현재 스텝을 반환합니다.", storyId);
+			                    return story.getCurrentStep();
+			                }
+			
+			                // 중복 요청 방지: 이미 해당 스텝에 대한 선택 기록이 있는지 확인
+			                if (storySelectLogRepository.existsByStoryAndStep(story, story.getCurrentStep())) {					log.warn("[스토리 {}] 중복 선택 요청: Step {} 에 대한 선택이 이미 처리되었습니다. 현재 페이지를 반환합니다.", storyId, story.getCurrentStep());
 					// 이미 다음 페이지가 생성되었을 수 있으므로, 다음 스텝 번호를 반환해준다.
 					return story.getCurrentStep() + 1;
 				}
@@ -429,7 +434,8 @@ public class StoryService {
 								story.getId(),
 								savedPage.getStep(),
 								referenceImagePaths,
-								story.getStatus()
+								story.getStatus(),
+								story.getChild().getName()
 							);
 							if (StringUtils.hasText(imageUrl)) {
 								savedPage.setImageUrl(imageUrl);
@@ -585,7 +591,8 @@ public class StoryService {
 				story.getId(),
 				savedPage.getStep(),
 				referenceImagePaths,
-				story.getStatus()
+				story.getStatus(),
+				story.getChild().getName()
 			);
 			if (StringUtils.hasText(imageUrl)) {
 				savedPage.setImageUrl(imageUrl);
@@ -862,20 +869,20 @@ public class StoryService {
 		}
 
 		StoryPageResponseDto dto = StoryPageResponseDto.from(page, choices);
-		return StoryPageResponseDto.builder()
-			.storyId(dto.storyId())
-			.step(dto.step())
-			.themeName(dto.themeName())
-			.narration(dto.narration())
-			.imageUrl(dto.imageUrl())
-			.hasChoice(dto.hasChoice())
-			.choices(dto.choices())
-			.storyTitle(dto.storyTitle())
-			.completion(dto.completion())
-			.hasNext(dto.hasNext())
-			.selectedChoice(selectedChoice)
-			.build();
-	}
+		        return StoryPageResponseDto.builder()
+		                .storyId(dto.storyId())
+		                .step(dto.step())
+		                .themeName(dto.themeName())
+		                .narration(dto.narration())
+		                .imageUrl(dto.imageUrl())
+		                .hasChoice(dto.hasChoice())
+		                .choices(dto.choices())
+		                .storyTitle(dto.storyTitle())
+		                .completion(dto.completion())
+		                .hasNext(dto.hasNext())
+		                .selectedChoice(selectedChoice)
+		                .status(dto.status())
+		                .build();	}
 
 	@Transactional(readOnly = true)
 	public boolean hasNextPage(Long storyId, Integer currentStep) {

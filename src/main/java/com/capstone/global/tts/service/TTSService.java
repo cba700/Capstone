@@ -42,8 +42,8 @@ public class TTSService {
         Map<String, Object> requestBody = new HashMap<>();
         requestBody.put("text", text);
         requestBody.put("model_id", DEFAULT_MODEL_ID);
-        // Optional: voice_settings for stability, similarity_boost
-        // requestBody.put("voice_settings", Map.of("stability", 0.5, "similarity_boost", 0.75));
+        // 아이들에게 동화를 읽어주듯, 목소리 표현력을 높이고 안정성은 낮춤.
+        requestBody.put("voice_settings", Map.of("stability", 0.5, "similarity_boost", 0.75));
 
 
         try {

@@ -190,16 +190,8 @@
                     <!-- Choices -->
                     <div th:if="${page.hasChoice}" class="grid gap-3">
                         <div th:each="choice : ${page.choices}">
-                            <form th:if="${#strings.isEmpty(choice.jobName)}"
-                                  th:action="@{/story/{storyId}/choice(storyId=${page.storyId})}"
-                                  method="post"
-                                  onsubmit="showLoading()">
-                                <input type="hidden" name="choiceId" th:value="${choice.choiceId}"/>
-                                <button type="submit" class="w-full text-left p-4 bg-white border-2 border-gray-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-all duration-300 transform hover:scale-105">
-                                    <p class="font-semibold text-gray-800" th:text="${choice.text}">선택지 텍스트</p>
-                                </button>
-                            </form>
-                            <form th:unless="${#strings.isEmpty(choice.jobName)}"
+                            <!-- Case 1: The story is in the 'RECOMMENDED' state, and the choice is a job. This is for starting a new job story. -->
+                            <form th:if="${page.status.name() == 'RECOMMENDED' and !#strings.isEmpty(choice.jobName)}"
                                   th:action="@{/story/start-job}"
                                   method="post"
                                   onsubmit="showLoading()">
@@ -207,6 +199,17 @@
                                 <input type="hidden" name="jobName" th:value="${choice.jobName}" />
                                 <input type="hidden" name="themeWorld" th:value="${choice.themeWorld}" />
                                 <button type="submit" class="w-full text-left p-4 bg-white border-2 border-purple-300 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-all duration-300 transform hover:scale-105">
+                                    <p class="font-semibold text-gray-800" th:text="${choice.text}">선택지 텍스트</p>
+                                </button>
+                            </form>
+
+                            <!-- Case 2: All other choices (normal progression in any story). -->
+                            <form th:unless="${page.status.name() == 'RECOMMENDED' and !#strings.isEmpty(choice.jobName)}"
+                                  th:action="@{/story/{storyId}/choice(storyId=${page.storyId})}"
+                                  method="post"
+                                  onsubmit="showLoading()">
+                                <input type="hidden" name="choiceId" th:value="${choice.choiceId}"/>
+                                <button type="submit" class="w-full text-left p-4 bg-white border-2 border-gray-200 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-all duration-300 transform hover:scale-105">
                                     <p class="font-semibold text-gray-800" th:text="${choice.text}">선택지 텍스트</p>
                                 </button>
                             </form>
