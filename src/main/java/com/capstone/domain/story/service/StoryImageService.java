@@ -95,12 +95,13 @@ public class StoryImageService {
 
         // 3. 스타일 지시 강화
         String styleInstruction;
+        String characterInstruction = "Draw the main character exactly as depicted in their reference image. However, if the 'Scene description' does not mention or imply the main character, you DO NOT need to include them in the image.";
         if (status == StoryStatus.JOB_STARTED || status == StoryStatus.IN_JOB_PROGRESS) {
             // Part 2 (with job)
-            styleInstruction = "For the visual style, you MUST faithfully combine three reference images: 1. The main character's exact appearance, 2. The theme's setting, background, and non-human characters, and 3. The job's key visual elements. Draw the main character exactly as depicted in their reference image.";
+            styleInstruction = "For the visual style, you MUST faithfully combine three reference images: 1. The main character's exact appearance, 2. The theme's setting, background, and non-human characters, and 3. The job's key visual elements. " + characterInstruction;
         } else {
             // Part 1 (no job)
-            styleInstruction = "For the visual style, you MUST faithfully combine two reference images: 1. The main character's exact appearance, and 2. The theme's setting, background, and non-human characters (e.g., if the theme is 'dinosaurs', dinosaurs should appear). Draw the main character exactly as depicted in their reference image.";
+            styleInstruction = "For the visual style, you MUST faithfully combine two reference images: 1. The main character's exact appearance, and 2. The theme's setting, background, and non-human characters (e.g., if the theme is 'dinosaurs', dinosaurs should appear). " + characterInstruction;
         }
 
         // 4. 부정 프롬프트 (기존과 동일)

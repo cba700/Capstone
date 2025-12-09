@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>내 목소리 녹음하기</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .recording-pulse {
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+<div class="container mx-auto p-4 md:p-8 max-w-4xl">
+
+    <div class="bg-white rounded-2xl shadow-xl p-6 md:p-8 mb-6">
+        <h1 class="text-3xl md:text-4xl font-bold text-gray-800 mb-2">나만의 목소리로 동화책 만들기</h1>
+        <p class="text-gray-600 text-base md:text-lg">아래 4개의 문장을 녹음해서 아이를 위한 특별한 목소리를 만들어주세요.</p>
+    </div>
+
+    <div id="alert-container" class="mb-4"></div>
+
+    <div class="space-y-6">
+        <div th:each="sentence, iterStat : ${sentences}" class="bg-white p-6 rounded-2xl shadow-lg sentence-block" th:data-index="${iterStat.index}">
+            <p class="text-lg md:text-xl text-gray-700 mb-4" th:text="|${iterStat.count}. '${sentence}'|"></p>
+            
+            <div class="flex flex-wrap items-center gap-3">
+                <button class="record-btn bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-full flex items-center transition-all duration-300">
+                    <i class="fas fa-microphone mr-2"></i>
+                    <span class="text">녹음 시작</span>
+                </button>
+                <button class="stop-btn bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-full hidden items-center transition-all duration-300">
+                    <i class="fas fa-stop mr-2"></i>
+                    <span>녹음 중지</span>
+                </button>
+                <audio class="playback-audio hidden rounded-full" controls></audio>
+                <span class="status-icon text-2xl"></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-8 bg-white rounded-2xl shadow-xl p-6 md:p-8">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">목소리 정보 입력</h2>
+        <div class="flex flex-col sm:flex-row gap-4">
+            <input type="text" id="voiceName" placeholder="목소리 이름 (예: 엄마 목소리)" class="flex-grow p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-purple-500 transition">
+            <button id="submit-all" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-8 rounded-lg transition-all duration-300 transform hover:scale-105 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:scale-100" disabled>
+                내 목소리 생성하기
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const sentenceBlocks = document.querySelectorAll('.sentence-block');
+        const recordedBlobs = new Array(sentenceBlocks.length).fill(null);
+        let mediaRecorder;
+        let audioChunks = [];
+
+        sentenceBlocks.forEach(block => {
+            const index = parseInt(block.dataset.index);
+            const recordBtn = block.querySelector('.record-btn');
+            const stopBtn = block.querySelector('.stop-btn');
+            const audioPlayer = block.querySelector('.playback-audio');
+            const statusIcon = block.querySelector('.status-icon');
+
+            recordBtn.addEventListener('click', async () => {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+
+                    mediaRecorder.ondataavailable = event => {
+                        audioChunks.push(event.data);
+                    };
+
+                    mediaRecorder.onstop = () => {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                        recordedBlobs[index] = audioBlob;
+                        audioChunks = [];
+                        const audioUrl = URL.createObjectURL(audioBlob);
+                        audioPlayer.src = audioUrl;
+
+                        audioPlayer.classList.remove('hidden');
+                        recordBtn.classList.remove('hidden');
+                        stopBtn.classList.add('hidden');
+                        recordBtn.querySelector('.text').textContent = '다시 녹음';
+                        statusIcon.innerHTML = '<i class="fas fa-check-circle text-green-500"></i>';
+
+                        checkIfAllRecorded();
+                    };
+
+                    mediaRecorder.start();
+                    recordBtn.classList.add('hidden');
+                    stopBtn.classList.remove('hidden');
+                    stopBtn.classList.add('recording-pulse');
+                    audioPlayer.classList.add('hidden');
+                    statusIcon.innerHTML = '<i class="fas fa-microphone-alt text-red-500 animate-pulse"></i>';
+
+                } catch (err) {
+                    showAlert('음성 녹음을 사용하려면 마이크 권한이 필요합니다.', 'error');
+                    console.error('Error getting user media:', err);
+                }
+            });
+
+            stopBtn.addEventListener('click', () => {
+                mediaRecorder.stop();
+                stopBtn.classList.remove('recording-pulse');
+            });
+        });
+
+        const submitBtn = document.getElementById('submit-all');
+        const voiceNameInput = document.getElementById('voiceName');
+
+        function checkIfAllRecorded() {
+            const allRecorded = recordedBlobs.every(blob => blob !== null);
+            submitBtn.disabled = !allRecorded;
+        }
+
+        submitBtn.addEventListener('click', async () => {
+            const voiceName = voiceNameInput.value.trim();
+            if (!voiceName) {
+                showAlert('목소리 이름을 입력해주세요.', 'warning');
+                voiceNameInput.focus();
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('name', voiceName);
+            recordedBlobs.forEach((blob, index) => {
+                if (blob) {
+                    formData.append('files', blob, `recording_${index + 1}.webm`);
+                }
+            });
+            
+            showAlert('목소리 생성을 시작합니다. 잠시만 기다려주세요...', 'info', false);
+            submitBtn.disabled = true;
+            submitBtn.textContent = '생성 중...';
+
+            try {
+                const response = await fetch('/api/voices/clone', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('Voice cloned successfully:', result);
+                    showAlert(`목소리 생성에 성공했습니다! (ID: ${result.voiceId}) 이제부터 내 목소리로 동화를 읽을 수 있어요.`, 'success');
+                } else {
+                    const errorText = await response.text();
+                    throw new Error(errorText);
+                }
+
+            } catch (error) {
+                console.error('Error cloning voice:', error);
+                showAlert(`목소리 생성 중 오류가 발생했습니다: ${error.message}`, 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = '내 목소리 생성하기';
+            }
+        });
+    });
+
+    function showAlert(message, type = 'info', autoDismiss = true) {
+        const container = document.getElementById('alert-container');
+        const alert = document.createElement('div');
+        let bgColor, textColor, icon;
+
+        switch (type) {
+            case 'success':
+                bgColor = 'bg-green-100';
+                textColor = 'text-green-700';
+                icon = 'fa-check-circle';
+                break;
+            case 'error':
+                bgColor = 'bg-red-100';
+                textColor = 'text-red-700';
+                icon = 'fa-exclamation-triangle';
+                break;
+            case 'warning':
+                bgColor = 'bg-yellow-100';
+                textColor = 'text-yellow-700';
+                icon = 'fa-exclamation-circle';
+                break;
+            default:
+                bgColor = 'bg-blue-100';
+                textColor = 'text-blue-700';
+                icon = 'fa-info-circle';
+                break;
+        }
+
+        alert.className = `p-4 mb-4 text-sm ${textColor} ${bgColor} rounded-lg flex items-center`;
+        alert.setAttribute('role', 'alert');
+        alert.innerHTML = `
+            <i class="fas ${icon} mr-3"></i>
+            <span class="font-medium">${message}</span>
+        `;
+        
+        container.innerHTML = ''; // Clear previous alerts
+        container.appendChild(alert);
+
+        if (autoDismiss) {
+            setTimeout(() => {
+                alert.style.opacity = '0';
+                alert.style.transition = 'opacity 0.5s';
+                setTimeout(() => alert.remove(), 500);
+            }, 5000);
+        }
+    }
+</script>
+</body>
+</html>
