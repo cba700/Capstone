@@ -245,5 +245,25 @@
         <p class="text-white/80 text-sm font-medium">© 2025 꿈꾸는 직업 이야기</p>
     </footer>
 </div>
+<script>
+    function openMenu() {
+        const menu = document.getElementById('sideMenu');
+        const overlay = document.getElementById('menuOverlay');
+        menu.style.transform = 'translateX(0)';
+        overlay.classList.remove('opacity-0', 'pointer-events-none');
+        overlay.classList.add('opacity-100', 'pointer-events-auto');
+    }
+
+    function closeMenu() {
+        const menu = document.getElementById('sideMenu');
+        const overlay = document.getElementById('menuOverlay');
+        menu.style.transform = 'translateX(-100%)';
+        overlay.classList.remove('opacity-100', 'pointer-events-auto');
+        overlay.classList.add('opacity-0', 'pointer-events-none');
+    }
+
+    document.getElementById('menuOverlay').addEventListener('click', closeMenu);
+</script>
+
 </body>
 </html>
